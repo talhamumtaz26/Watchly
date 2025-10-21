@@ -111,6 +111,14 @@ const Details = () => {
   const handleAddToWatchLater = () => {
     if (!details) return;
 
+    // Calculate total runtime for TV shows
+    let totalRuntime = details.runtime || 0;
+    if (mediaType === 'tv' && !totalRuntime) {
+      const episodeRuntime = details.episode_run_time?.[0] || 45;
+      const numberOfEpisodes = details.number_of_episodes || (details.number_of_seasons * 10) || 10;
+      totalRuntime = episodeRuntime * numberOfEpisodes;
+    }
+
     const item = {
       id: details.id,
       title: details.title || details.name,
@@ -118,7 +126,11 @@ const Details = () => {
       release_date: details.release_date || details.first_air_date,
       vote_average: details.vote_average,
       media_type: mediaType,
-      runtime: details.runtime || details.episode_run_time?.[0] || 0,
+      runtime: totalRuntime,
+      // Store additional TV show info for future calculations
+      episode_run_time: details.episode_run_time,
+      number_of_episodes: details.number_of_episodes,
+      number_of_seasons: details.number_of_seasons,
     };
 
     if (addToWatchLater(item)) {
@@ -304,15 +316,19 @@ const Details = () => {
                   {title}
                 </h1>
                 <div className="flex flex-wrap items-center gap-1.5 md:gap-4 mb-2 md:mb-4 text-text-muted text-[11px] md:text-base animate-slide-up">
-                  <span className="text-white font-semibold">
-                    {releaseDate 
-                      ? new Date(releaseDate).getFullYear()
-                      : 'N/A'}
-                  </span>
+                  {releaseDate && (
+                    <span className="text-white font-semibold">
+                      {new Date(releaseDate).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}
+                    </span>
+                  )}
                   {displayRuntime > 0 && (
                     <>
                       <span>•</span>
-                      <span>
+                      <span className="font-bold">
                         {mediaType === 'tv' 
                           ? `${Math.floor(displayRuntime / 60)}h` 
                           : `${displayRuntime}m`}

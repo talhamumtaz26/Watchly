@@ -37,13 +37,20 @@ const WatchLater = () => {
   };
 
   const handleRemove = async (id, mediaType) => {
+    // Show confirmation dialog
+    const confirmed = window.confirm('Are you sure you want to remove this item from Watch Later?');
+    
+    if (!confirmed) {
+      return; // User cancelled, don't remove
+    }
+
     try {
       if (user) {
         await removeFromWatchLaterCloud(user.uid, id, mediaType);
       } else {
         removeFromWatchLater(id, mediaType);
       }
-      toast.info('Removed from Watch Later');
+      // Removed toast notification
       loadItems();
     } catch (error) {
       console.error('Error removing item:', error);
@@ -70,7 +77,19 @@ const WatchLater = () => {
 
   const calculateTotalTime = () => {
     return items.reduce((total, item) => {
-      return total + (item.runtime || 0);
+      // If runtime is already provided (total runtime), use it directly
+      if (item.runtime) {
+        return total + item.runtime;
+      }
+      
+      // For TV shows without runtime, calculate based on episodes
+      if (item.media_type === 'tv') {
+        const episodeRuntime = item.episode_run_time?.[0] || 45; // Default 45 min per episode
+        const numberOfEpisodes = item.number_of_episodes || item.number_of_seasons * 10 || 10;
+        return total + (episodeRuntime * numberOfEpisodes);
+      }
+      
+      return total;
     }, 0);
   };
 
@@ -92,21 +111,22 @@ const WatchLater = () => {
 
   if (items.length === 0) {
     return (
-      <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 4rem)' }}>
-        <div className="text-center animate-fade-in">
-          <div className="mb-6 text-6xl">📺</div>
-          <h2 className="text-2xl md:text-3xl font-display font-bold text-white mb-3">
-            No Items Yet
-          </h2>
-          <p className="text-base md:text-lg text-gray-400 mb-6 max-w-md mx-auto px-4">
-            Your watch later list is empty. Start adding movies and TV shows you want to watch!
-          </p>
-          <Link
-            to="/"
-            className="inline-block bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-card hover:shadow-card-hover"
-          >
-            Browse Content
-          </Link>
+      <div className="bg-black pb-20">
+        <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 8rem)' }}>
+          <div className="text-center animate-fade-in px-4">
+            <h2 className="text-2xl md:text-3xl font-display font-bold text-white mb-3">
+              No Items Yet
+            </h2>
+            <p className="text-base md:text-lg text-gray-400 mb-6 max-w-md mx-auto">
+              Your watch later list is empty. Start adding movies and TV shows you want to watch!
+            </p>
+            <Link
+              to="/"
+              className="inline-block bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-card hover:shadow-card-hover"
+            >
+              Browse Content
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -117,14 +137,14 @@ const WatchLater = () => {
   const tvCount = items.filter((item) => item.media_type === 'tv').length;
 
   return (
-    <div className="min-h-screen bg-black pt-10 pb-24 px-4">
-      <div className="max-w-5xl mx-auto">
+    <div className="bg-black transition-colors duration-200">
+      <div className="container mx-auto px-4 py-6 pb-24">
         {/* Header Section */}
-        <div className="text-center mb-6">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-2">
+        <div className="mb-6 text-center">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">
             Watch Later
           </h1>
-          <p className="text-sm md:text-base text-gray-400">
+          <p className="text-sm text-gray-400">
             Your saved movies and TV shows to watch
           </p>
         </div>
@@ -132,37 +152,37 @@ const WatchLater = () => {
         {/* Stats Card */}
         {items.length > 0 && (
           <section className="mb-8">
-            <div className="bg-[#111722] border border-[#1e2431] rounded-3xl px-6 py-5 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
-              <div className="grid grid-cols-4 divide-x divide-[#1f2533] text-center">
-                <div className="px-3">
-                  <p className="text-2xl md:text-3xl font-semibold text-white">
+            <div className="bg-[#1c1c1e] rounded-[18px] py-6 px-4 mx-auto max-w-[600px]">
+              <div className="grid grid-cols-[1fr_1fr_1fr_1.4fr] divide-x-2 divide-[#2c2c2e]">
+                <div className="flex flex-col items-center justify-center px-2 py-2">
+                  <p className="text-[20px] font-bold text-white leading-none mb-1.5">
                     {items.length}
                   </p>
-                  <p className="mt-1 text-xs md:text-sm uppercase tracking-wide text-gray-400">
+                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
                     Total Items
                   </p>
                 </div>
-                <div className="px-3">
-                  <p className="text-2xl md:text-3xl font-semibold text-white">
+                <div className="flex flex-col items-center justify-center px-1.5">
+                  <p className="text-[20px] font-bold text-white leading-none mb-1.5">
                     {movieCount}
                   </p>
-                  <p className="mt-1 text-xs md:text-sm uppercase tracking-wide text-gray-400">
+                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
                     Movies
                   </p>
                 </div>
-                <div className="px-3">
-                  <p className="text-2xl md:text-3xl font-semibold text-white">
+                <div className="flex flex-col items-center justify-center px-1.5">
+                  <p className="text-[20px] font-bold text-white leading-none mb-1.5">
                     {tvCount}
                   </p>
-                  <p className="mt-1 text-xs md:text-sm uppercase tracking-wide text-gray-400">
-                    TV Shows
+                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
+                    Series
                   </p>
                 </div>
-                <div className="px-3">
-                  <p className="text-2xl md:text-3xl font-semibold text-white whitespace-nowrap">
+                <div className="flex flex-col items-center justify-center px-2">
+                  <p className="text-[20px] font-bold text-white leading-none mb-1.5 whitespace-nowrap">
                     {formatTime(totalTime)}
                   </p>
-                  <p className="mt-1 text-xs md:text-sm uppercase tracking-wide text-gray-400">
+                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
                     Est. Time
                   </p>
                 </div>
@@ -171,25 +191,8 @@ const WatchLater = () => {
           </section>
         )}
 
-        {/* Movies Section */}
-        {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <div className="text-6xl mb-4">🎬</div>
-            <h2 className="text-2xl font-bold text-white mb-2">
-              No Items Yet
-            </h2>
-            <p className="text-gray-400 text-center mb-6">
-              Start adding movies and TV shows to watch later
-            </p>
-            <button
-              onClick={() => navigate("/search")}
-              className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors"
-            >
-              Browse Content
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+        {/* Movies Grid */}
+        <div className="grid grid-cols-2 gap-5">
             {items.map((item) => (
               <div key={item.id} className="relative">
                 <MovieCard item={item} />
@@ -202,7 +205,7 @@ const WatchLater = () => {
                     <span>Watched</span>
                   </button>
                   <button
-                    onClick={() => handleRemove(item.id)}
+                    onClick={() => handleRemove(item.id, item.media_type)}
                     className="bg-red-600 text-white py-2 px-3 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
                   >
                     ×
@@ -210,8 +213,7 @@ const WatchLater = () => {
                 </div>
               </div>
             ))}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

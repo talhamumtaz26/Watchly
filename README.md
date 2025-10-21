@@ -1,183 +1,321 @@
 # Watchly 🎬
 
-A modern movie and TV tracking app built with React and the TMDb API.
+A modern, feature-rich Progressive Web App (PWA) for tracking movies, TV shows, and anime. Built with React and powered by The Movie Database (TMDb) API, Watchly offers a seamless experience across web and mobile platforms.
+
+![React](https://img.shields.io/badge/React-18.x-blue)
+![Capacitor](https://img.shields.io/badge/Capacitor-Latest-blue)
+![Firebase](https://img.shields.io/badge/Firebase-Enabled-orange)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 ## Features
 
-✨ **Discover** trending movies and TV shows  
-🔍 **Search** for any movie or series  
-📄 **View Details** with cast, ratings, and more  
-📚 **Watch Later** - Save content to watch  
-✅ **Watched** - Track completed content  
-⏱️ **Watch Time** - See total hours watched  
-📅 **Upcoming** - Browse upcoming releases  
-🌓 **Dark/Light Mode** - Theme support  
-💾 **Data Export/Import** - Backup your lists
+### Content Discovery
+
+- **Streaming & Theatre Content** - Discover what's popular on streaming platforms and in theatres
+- **Movies, Series & Anime** - Browse 12 items per category with "View All" option for infinite scrolling
+- **Genre Exploration** - Filter content by your favorite genres
+- **Search Functionality** - Find any movie, TV show, or anime instantly
+- **Upcoming Releases** - Browse future releases across all content types (movies, series, anime)
+
+### User Experience
+
+- **Progressive Web App (PWA)** - Install on any device and use offline
+- **Android App Support** - Built with Capacitor for native Android experience
+- **Smart Back Navigation** - Double-tap to exit from home, intuitive navigation throughout
+- **Scroll Position Memory** - Returns to exact scroll position when navigating back
+- **Responsive Design** - Optimized for mobile, tablet, and desktop
+
+### Personal Library
+
+- **Watch Later List** - Save content you want to watch
+- **Watched Collection** - Track what you've completed with sorting and filtering
+- **Total Watch Time** - See your accumulated viewing hours
+- **Cloud Sync** - Firebase integration for cross-device synchronization
+- **Data Export/Import** - Backup and restore your data anytime
+
+### Authentication
+
+- **Firebase Auth** - Secure user authentication
+- **Protected Routes** - Secure access to personal features
+- **User Profiles** - Personalized experience for each user
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
-- npm or yarn
-- TMDb API Key (free)
+- **Node.js** (v14 or higher)
+- **npm** or **yarn**
+- **TMDb API Key** (free) - [Get it here](https://www.themoviedb.org/settings/api)
+- **Firebase Project** (optional for auth) - [Firebase Console](https://console.firebase.google.com/)
 
 ### Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
 
-```bash
-git clone <your-repo-url>
-cd Watchly
-```
-
-2. Install dependencies:
-
-```bash
-npm install
-```
-
-3. Get your TMDb API Key:
-
-   - Go to [https://www.themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)
-   - Sign up for a free account
-   - Request an API key
-
-4. Configure environment variables:
-
-   - Open the `.env` file in the project root
-   - Replace `your_api_key_here` with your actual TMDb API key:
-
+   ```bash
+   git clone https://github.com/talhamumtaz26/watchly.git
+   cd watchly
    ```
-   REACT_APP_TMDB_KEY=your_actual_api_key_here
+
+2. **Install dependencies:**
+
+   ```bash
+   npm install
+   ```
+
+3. **Set up TMDb API Key:**
+
+   - Sign up at [TMDb](https://www.themoviedb.org/)
+   - Go to Settings → API
+   - Request a free API key
+
+4. **Configure environment variables:**
+
+   Create a `.env` file in the project root:
+
+   ```env
+   REACT_APP_TMDB_KEY=your_tmdb_api_key_here
    REACT_APP_TMDB_BASE_URL=https://api.themoviedb.org/3
    REACT_APP_TMDB_IMAGE_BASE_URL=https://image.tmdb.org/t/p
    ```
 
-5. Start the development server:
+5. **Set up Firebase (optional):**
+
+   Add your Firebase configuration to `src/firebase/config.js`:
+
+   ```javascript
+   const firebaseConfig = {
+     apiKey: "your-api-key",
+     authDomain: "your-auth-domain",
+     projectId: "your-project-id",
+     storageBucket: "your-storage-bucket",
+     messagingSenderId: "your-messaging-sender-id",
+     appId: "your-app-id",
+   };
+   ```
+
+6. **Start the development server:**
+
+   ```bash
+   npm start
+   ```
+
+7. **Open in browser:**
+
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+### Building for Production
+
+**Web Build:**
 
 ```bash
-npm start
+npm run build
 ```
 
-6. Open [http://localhost:3000](http://localhost:3000) in your browser
+**Android Build:**
+
+```bash
+npm run build
+npx cap sync android
+npx cap open android
+```
 
 ## Tech Stack
 
-- **Frontend**: React 18
-- **Routing**: React Router v6
-- **Styling**: Tailwind CSS
-- **HTTP Client**: Axios
-- **Data Storage**: localStorage
-- **API**: The Movie Database (TMDb)
+### Frontend
+
+- **React 18** - Modern React with hooks and concurrent features
+- **React Router v6** - Client-side routing with advanced navigation
+- **Tailwind CSS** - Utility-first CSS framework
+- **Axios** - HTTP client for API requests
+
+### Mobile & PWA
+
+- **Capacitor** - Cross-platform native runtime
+- **Service Workers** - Offline support and caching
+- **Web App Manifest** - PWA installation
+
+### Backend & Storage
+
+- **Firebase Authentication** - User management
+- **Firebase Cloud Storage** - Data synchronization
+- **Session Storage** - State persistence
+- **Local Storage** - Offline data caching
+
+### APIs
+
+- **TMDb API** - Movie, TV, and anime data
+- **TMDb Discover** - Advanced filtering and sorting
 
 ## Project Structure
 
 ```
 Watchly/
+├── android/                    # Capacitor Android project
 ├── public/
-│   ├── index.html
-│   └── manifest.json
+│   ├── index.html             # HTML entry point
+│   └── manifest.json          # PWA manifest
 ├── src/
 │   ├── components/
-│   │   ├── Navbar.jsx
-│   │   ├── MovieCard.jsx
-│   │   ├── MovieList.jsx
-│   │   ├── SearchBar.jsx
-│   │   └── ThemeToggle.jsx
+│   │   ├── BottomNav.jsx      # Mobile bottom navigation
+│   │   ├── GenreFilter.jsx    # Genre filtering component
+│   │   ├── LoadingSpinner.jsx # Loading states
+│   │   ├── MovieCard.jsx      # Content card component
+│   │   ├── MovieList.jsx      # Content list with carousel
+│   │   ├── Navbar.jsx         # Top navigation bar
+│   │   ├── ProtectedRoute.jsx # Auth route protection
+│   │   ├── SearchBar.jsx      # Search functionality
+│   │   ├── ThemeToggle.jsx    # Dark/light mode toggle
+│   │   └── Toast.jsx          # Notification system
+│   ├── contexts/
+│   │   └── AuthContext.jsx    # Authentication context
+│   ├── firebase/
+│   │   └── config.js          # Firebase configuration
 │   ├── pages/
-│   │   ├── Home.jsx
-│   │   ├── Details.jsx
-│   │   ├── WatchLater.jsx
-│   │   ├── Watched.jsx
-│   │   ├── Upcoming.jsx
-│   │   └── Settings.jsx
+│   │   ├── Home.jsx           # Main landing page
+│   │   ├── ViewAll.jsx        # Infinite scroll view
+│   │   ├── Details.jsx        # Content detail page
+│   │   ├── Search.jsx         # Search results
+│   │   ├── Genre.jsx          # Genre-filtered content
+│   │   ├── Actor.jsx          # Actor details and filmography
+│   │   ├── Upcoming.jsx       # Upcoming releases
+│   │   ├── WatchLater.jsx     # Watch later list
+│   │   ├── Watched.jsx        # Watched collection
+│   │   ├── Settings.jsx       # App settings
+│   │   ├── AppSettings.jsx    # Application preferences
+│   │   ├── Dashboard.jsx      # User dashboard
+│   │   └── Login.jsx          # Authentication page
 │   ├── utils/
-│   │   ├── api.js
-│   │   └── storage.js
-│   ├── App.js
-│   ├── App.css
-│   ├── index.js
-│   └── index.css
-├── .env
-├── .gitignore
-├── package.json
-├── tailwind.config.js
-└── postcss.config.js
+│   │   ├── api.js             # TMDb API integration
+│   │   ├── storage.js         # Local storage utilities
+│   │   └── cloudStorage.js    # Firebase cloud storage
+│   ├── App.js                 # Root component with routing
+│   ├── App.css               # Global styles
+│   ├── index.js              # React entry point
+│   └── index.css             # Tailwind imports
+├── .env                       # Environment variables
+├── capacitor.config.ts        # Capacitor configuration
+├── firebase.json              # Firebase settings
+├── package.json               # Dependencies
+├── tailwind.config.js         # Tailwind configuration
+└── postcss.config.js          # PostCSS configuration
 ```
 
-## Available Scripts
+## Usage Guide
 
-### `npm start`
+### Browsing Content
 
-Runs the app in development mode at [http://localhost:3000](http://localhost:3000)
+1. Launch the app to see popular content across categories
+2. Tap any content card to view detailed information
+3. Use the "View All" arrow to see more items with infinite scroll
+4. Swipe between pages using bottom navigation
 
-### `npm build`
+### Managing Your Library
 
-Builds the app for production to the `build` folder
+1. **Add to Watch Later:**
 
-### `npm test`
+   - Tap any content card
+   - Click "Add to Watch Later" button
+   - Access from Watch Later page
 
-Launches the test runner
+2. **Mark as Watched:**
 
-## Usage
+   - Open Watch Later list
+   - Click "✓ Watched" button
+   - Automatically moves to Watched collection
+   - Adds to total watch time
 
-### Adding to Watch Later
+3. **Filter & Sort Watched:**
+   - Open Watched page
+   - Use filter buttons for type (All/Movies/TV)
+   - Sort by date added or title
 
-1. Browse or search for a movie/TV show
-2. Click on the item to view details
-3. Click "Add to Watch Later" button
+### Searching
 
-### Marking as Watched
+1. Tap search icon in navigation
+2. Type movie, TV show, or anime name
+3. Results appear in real-time
+4. Tap any result for details
 
-1. Go to Watch Later list
-2. Click "✓ Watched" on any item
-3. The item moves to Watched and adds to your total watch time
+### Theme & Settings
 
-### Managing Lists
+1. Access Settings for:
+   - Export data (JSON file)
+   - Import data from backup
+   - Clear all data
+   - Sign out
 
-- **Watch Later**: View and manage items you plan to watch
-- **Watched**: View completed items with filtering and sorting options
-- **Settings**: Export/import data, clear all data, change theme
+## Data & Privacy
 
-## Data Storage
-
-All data is stored locally in your browser using localStorage:
+### Local Storage
 
 - Watch Later list
-- Watched list
+- Watched collection
 - Total watch time
 - Theme preference
+- Session states
 
-You can export your data as a JSON file and import it later.
+### Cloud Storage (Firebase)
 
-## Future Enhancements
+- Synchronized across devices when logged in
+- Secure user authentication
+- Optional - app works without login
 
-- 🔐 User authentication with Firebase
-- ☁️ Cloud sync across devices
-- 🤖 AI-based recommendations
-- 👥 Social features (share lists, follow friends)
-- 🔔 Release notifications
-- 📊 Advanced analytics dashboard
-- 📱 Mobile responsive improvements
+### Data Export/Import
+
+- Export your data as JSON anytime
+- Import to restore or transfer data
+- No data lock-in
+
+## Deployment
+
+### Web Deployment
+
+Deploy to any static hosting service:
+
+- **Vercel**: `vercel --prod`
+- **Netlify**: Drag and drop `build` folder
+- **Firebase Hosting**: `firebase deploy`
+
+### Android Deployment
+
+1. Build the web app: `npm run build`
+2. Sync with Capacitor: `npx cap sync android`
+3. Open in Android Studio: `npx cap open android`
+4. Build APK or AAB for Google Play Store
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Here's how you can help:
+
+1. **Fork the repository**
+2. **Create a feature branch:** `git checkout -b feature/amazing-feature`
+3. **Commit your changes:** `git commit -m 'Add amazing feature'`
+4. **Push to the branch:** `git push origin feature/amazing-feature`
+5. **Open a Pull Request**
+
+### Development Guidelines
+
+- Follow existing code style
+- Test on multiple devices/browsers
+- Update documentation as needed
+- Keep commits focused and descriptive
 
 ## License
 
-This project is open source and available under the MIT License.
-
-## Acknowledgments
-
-- Data provided by [The Movie Database (TMDb)](https://www.themoviedb.org/)
-- This product uses the TMDb API but is not endorsed or certified by TMDb
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
-If you encounter any issues or have questions, please open an issue on GitHub.
+Found a bug or have a question?
+
+- Open an [issue on GitHub](https://github.com/talhamumtaz26/Watchly/issues)
+- Email: [talhamalik2604@gmail.com]
+
+## Show Your Support
+
+Give a ⭐️ if this project helped you!
 
 ---
 
-Made with ❤️ by Watchly Team
+**Made with ❤️ by [Talha Mumtaz](https://github.com/talhamumtaz26)**

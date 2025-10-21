@@ -1,18 +1,19 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
-import { getWatchLater, removeFromWatchLater, addToWatched } from '../utils/storage';
-import { getWatchLaterCloud, removeFromWatchLaterCloud, addToWatchedCloud } from '../utils/cloudStorage';
+import { getWatched, removeFromWatched } from '../utils/storage';
+import { getWatchedCloud, removeFromWatchedCloud } from '../utils/cloudStorage';
 import MovieCard from '../components/MovieCard';
-import { FiClock, FiTrash2, FiCheckCircle } from 'react-icons/fi';
-import { MdMovie, MdTv } from 'react-icons/md';
 
 const Watched = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('dateWatched');
   const toast = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadItems();
@@ -21,28 +22,35 @@ const Watched = () => {
   const loadItems = async () => {
     try {
       if (user) {
-        const cloudItems = await getWatchLaterCloud(user.uid);
+        const cloudItems = await getWatchedCloud(user.uid);
         setItems(cloudItems);
       } else {
-        const localItems = getWatchLater();
+        const localItems = getWatched();
         setItems(localItems);
       }
     } catch (error) {
-      console.error('Error loading watch later:', error);
-      toast.error('Failed to load watch later list');
+      console.error('Error loading watched:', error);
+      toast.error('Failed to load watched list');
     } finally {
       setLoading(false);
     }
   };
 
   const handleRemove = async (id, mediaType) => {
+    // Show confirmation dialog
+    const confirmed = window.confirm('Are you sure you want to remove this item from Watched?');
+    
+    if (!confirmed) {
+      return; // User cancelled, don't remove
+    }
+
     try {
       if (user) {
-        await removeFromWatchLaterCloud(user.uid, id, mediaType);
+        await removeFromWatchedCloud(user.uid, id, mediaType);
       } else {
-        removeFromWatchLater(id, mediaType);
+        removeFromWatched(id, mediaType);
       }
-      toast.info('Removed from Watch Later');
+      // Removed toast notification
       loadItems();
     } catch (error) {
       console.error('Error removing item:', error);
@@ -50,26 +58,21 @@ const Watched = () => {
     }
   };
 
-  const handleMarkAsWatched = async (item) => {
-    try {
-      if (user) {
-        await addToWatchedCloud(user.uid, item);
-        await removeFromWatchLaterCloud(user.uid, item.id, item.media_type);
-      } else {
-        addToWatched(item);
-        removeFromWatchLater(item.id, item.media_type);
-      }
-      toast.success('Marked as Watched! ✅');
-      loadItems();
-    } catch (error) {
-      console.error('Error marking as watched:', error);
-      toast.error('Failed to mark as watched');
-    }
-  };
-
   const calculateTotalTime = () => {
     return items.reduce((total, item) => {
-      return total + (item.runtime || 0);
+      // If runtime is already provided (total runtime), use it directly
+      if (item.runtime) {
+        return total + item.runtime;
+      }
+      
+      // For TV shows without runtime, calculate based on episodes
+      if (item.media_type === 'tv') {
+        const episodeRuntime = item.episode_run_time?.[0] || 45; // Default 45 min per episode
+        const numberOfEpisodes = item.number_of_episodes || item.number_of_seasons * 10 || 10;
+        return total + (episodeRuntime * numberOfEpisodes);
+      }
+      
+      return total;
     }, 0);
   };
 
@@ -79,6 +82,12 @@ const Watched = () => {
     if (hours === 0) return `${mins}m`;
     if (mins === 0) return `${hours}h`;
     return `${hours}h ${mins}m`;
+  };
+
+  const calculateDaysWorth = (minutes) => {
+    const hours = minutes / 60;
+    const days = Math.floor(hours / 24);
+    return days;
   };
 
   if (loading) {
@@ -91,21 +100,22 @@ const Watched = () => {
 
   if (items.length === 0) {
     return (
-      <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 4rem)' }}>
-        <div className="text-center animate-fade-in">
-          <div className="mb-6 text-6xl">📺</div>
-          <h2 className="text-2xl md:text-3xl font-display font-bold text-white mb-3">
-            No Items Yet
-          </h2>
-          <p className="text-base md:text-lg text-gray-400 mb-6 max-w-md mx-auto px-4">
-            Your watch later list is empty. Start adding movies and TV shows you want to watch!
-          </p>
-          <Link
-            to="/"
-            className="inline-block bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-card hover:shadow-card-hover"
-          >
-            Browse Content
-          </Link>
+      <div className="bg-black pb-20">
+        <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 8rem)' }}>
+          <div className="text-center animate-fade-in px-4">
+            <h2 className="text-2xl md:text-3xl font-display font-bold text-white mb-3">
+              No Items Yet
+            </h2>
+            <p className="text-base md:text-lg text-gray-400 mb-6 max-w-md mx-auto">
+              Your watched list is empty. Start watching movies and TV shows!
+            </p>
+            <Link
+              to="/"
+              className="inline-block bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-card hover:shadow-card-hover"
+            >
+              Browse Content
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -114,76 +124,156 @@ const Watched = () => {
   const totalTime = calculateTotalTime();
   const movieCount = items.filter((item) => item.media_type === 'movie').length;
   const tvCount = items.filter((item) => item.media_type === 'tv').length;
+  const daysWorth = calculateDaysWorth(totalTime);
+
+  // Filter items based on selected filter
+  const filteredItems = items.filter((item) => {
+    if (filter === 'all') return true;
+    if (filter === 'movies') return item.media_type === 'movie';
+    if (filter === 'tv') return item.media_type === 'tv';
+    return true;
+  });
+
+  // Sort items based on selected sort option
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    if (sortBy === 'dateWatched') {
+      return new Date(b.watchedDate || b.addedDate) - new Date(a.watchedDate || a.addedDate);
+    }
+    if (sortBy === 'name') {
+      const nameA = (a.title || a.name || '').toLowerCase();
+      const nameB = (b.title || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    }
+    if (sortBy === 'rating') {
+      return (b.vote_average || 0) - (a.vote_average || 0);
+    }
+    return 0;
+  });
 
   return (
-    <div className="min-h-screen pt-20 pb-24 px-4 md:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8 animate-fade-in">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-white mb-4">
-            Watch Later
+    <div className="bg-black transition-colors duration-200">
+      <div className="container mx-auto px-4 py-6 pb-24">
+        {/* Header Section */}
+        <div className="mb-6 text-center">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">
+            Watched Collection
           </h1>
-          <p className="text-base md:text-lg text-gray-400">
-            Your personalized watchlist
+          <p className="text-sm text-gray-400">
+            Your completed movies and TV shows
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-slide-up">
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 shadow-card backdrop-blur-sm border border-white/5">
-            <div className="flex items-center gap-3 mb-2">
-              <FiClock className="text-2xl text-red-500" />
-              <span className="text-sm text-gray-400">Total Items</span>
+        {/* Stats Card */}
+        {items.length > 0 && (
+          <section className="mb-8">
+            <div className="bg-[#1c1c1e] rounded-[18px] py-6 px-4 mx-auto max-w-[600px]">
+              <div className="grid grid-cols-[1fr_1fr_1fr_1fr] divide-x-2 divide-[#2c2c2e]">
+                <div className="flex flex-col items-center justify-center px-1.5 py-2">
+                  <p className="text-[20px] font-bold text-white leading-none mb-1.5">
+                    {items.length}
+                  </p>
+                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
+                    Total Items
+                  </p>
+                </div>
+                <div className="flex flex-col items-center justify-center px-1.5 py-2">
+                  <p className="text-[20px] font-bold text-white leading-none mb-1.5">
+                    {Math.floor(totalTime / 60)}h
+                  </p>
+                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
+                    Hours
+                  </p>
+                </div>
+                <div className="flex flex-col items-center justify-center px-1.5 py-2">
+                  <p className="text-[20px] font-bold text-white leading-none mb-1.5">
+                    {totalTime % 60}m
+                  </p>
+                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
+                    Minutes
+                  </p>
+                </div>
+                <div className="flex flex-col items-center justify-center px-1.5 py-2">
+                  <p className="text-[20px] font-bold text-white leading-none mb-1.5">
+                    {daysWorth}
+                  </p>
+                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
+                    Days
+                  </p>
+                </div>
+              </div>
             </div>
-            <p className="text-3xl font-display font-bold text-white">{items.length}</p>
-          </div>
+          </section>
+        )}
 
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 shadow-card backdrop-blur-sm border border-white/5">
-            <div className="flex items-center gap-3 mb-2">
-              <MdMovie className="text-2xl text-blue-500" />
-              <span className="text-sm text-gray-400">Movies</span>
+        {/* Filter and Sort Section */}
+        {items.length > 0 && (
+          <section className="mb-6">
+            <div className="bg-[#1c1c1e] rounded-[18px] p-5 mx-auto max-w-[600px]">
+              {/* Filter */}
+              <div className="mb-4">
+                <h3 className="text-xs font-semibold text-white mb-2">Filter:</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setFilter('all')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      filter === 'all'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-[#2c2c2e] text-gray-400 hover:bg-[#3c3c3e]'
+                    }`}
+                  >
+                    All ({items.length})
+                  </button>
+                  <button
+                    onClick={() => setFilter('movies')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      filter === 'movies'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-[#2c2c2e] text-gray-400 hover:bg-[#3c3c3e]'
+                    }`}
+                  >
+                    Movies ({movieCount})
+                  </button>
+                  <button
+                    onClick={() => setFilter('tv')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      filter === 'tv'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-[#2c2c2e] text-gray-400 hover:bg-[#3c3c3e]'
+                    }`}
+                  >
+                    TV Shows ({tvCount})
+                  </button>
+                </div>
+              </div>
+
+              {/* Sort */}
+              <div>
+                <h3 className="text-xs font-semibold text-white mb-2">Sort by:</h3>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full bg-[#2c2c2e] text-white px-3 py-2 rounded-lg text-xs border-none outline-none cursor-pointer"
+                >
+                  <option value="dateWatched">Date Watched</option>
+                  <option value="name">Name</option>
+                  <option value="rating">Rating</option>
+                </select>
+              </div>
             </div>
-            <p className="text-3xl font-display font-bold text-white">{movieCount}</p>
-          </div>
+          </section>
+        )}
 
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 shadow-card backdrop-blur-sm border border-white/5">
-            <div className="flex items-center gap-3 mb-2">
-              <MdTv className="text-2xl text-purple-500" />
-              <span className="text-sm text-gray-400">TV Shows</span>
-            </div>
-            <p className="text-3xl font-display font-bold text-white">{tvCount}</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 shadow-card backdrop-blur-sm border border-white/5">
-            <div className="flex items-center gap-3 mb-2">
-              <FiClock className="text-2xl text-green-500" />
-              <span className="text-sm text-gray-400">Est. Time</span>
-            </div>
-            <p className="text-3xl font-display font-bold text-white">
-              {formatTime(totalTime)}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-          {items.map((item) => (
-            <div key={`${item.media_type}-${item.id}`} className="animate-fade-in">
+        {/* Movies Section */}
+        <div className="grid grid-cols-2 gap-5">
+          {sortedItems.map((item) => (
+            <div key={item.id} className="relative">
               <MovieCard item={item} />
-              
               <div className="mt-3 flex gap-2">
                 <button
-                  onClick={() => handleMarkAsWatched(item)}
-                  className="flex-1 bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
-                  title="Mark as Watched"
-                >
-                  <FiCheckCircle className="text-sm" />
-                  <span>Watched</span>
-                </button>
-                
-                <button
                   onClick={() => handleRemove(item.id, item.media_type)}
-                  className="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-all"
-                  title="Remove"
+                  className="flex-1 bg-red-600 text-white py-2 px-3 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
                 >
-                  <FiTrash2 className="text-sm" />
+                  Remove
                 </button>
               </div>
             </div>

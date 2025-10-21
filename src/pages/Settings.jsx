@@ -21,8 +21,8 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black transition-colors duration-200">
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
+    <div className="bg-black transition-colors duration-200">
+      <div className="container mx-auto px-4 py-6 pb-20">
         {/* Header - Compact */}
         <div className="mb-6 text-center">
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">
@@ -34,7 +34,7 @@ const Settings = () => {
         </div>
 
         {/* Menu Sections */}
-        <div className="space-y-3">
+        <div className="space-y-3 max-w-4xl mx-auto pb-4">
           {/* Profile Section */}
           {currentUser ? (
             <div className="bg-card-dark rounded-xl p-5 shadow-md border border-gray-800">

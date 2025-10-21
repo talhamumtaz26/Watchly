@@ -4,7 +4,7 @@ import { getImageUrl } from '../utils/api';
 import { FiStar, FiFilm, FiTv } from 'react-icons/fi';
 import { isWatched } from '../utils/storage';
 
-const MovieCard = ({ item, showType = true }) => {
+const MovieCard = ({ item, showType = true, saveScrollOnClick = false }) => {
   // Determine media type
   const mediaType = item.media_type || (item.title ? 'movie' : 'tv');
   const title = item.title || item.name;
@@ -25,9 +25,19 @@ const MovieCard = ({ item, showType = true }) => {
     });
   };
 
+  const handleClick = () => {
+    if (saveScrollOnClick) {
+      // Save current scroll position
+      const currentPath = window.location.pathname;
+      sessionStorage.setItem(`scroll_${currentPath}`, window.scrollY.toString());
+      console.log('MovieCard: Saved scroll position:', window.scrollY);
+    }
+  };
+
   return (
     <Link
       to={`/details/${mediaType}/${item.id}`}
+      onClick={handleClick}
       className="group block bg-card-darker rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] animate-fade-in overflow-hidden"
     >
       {/* Poster Image Container */}

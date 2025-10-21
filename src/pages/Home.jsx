@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { getTrending, getPopularMovies, getPopularTVShows, getMoviesByGenre, getTVShowsByGenre, getMoviesByRegion } from '../utils/api';
+import { getNowPlayingMovies, getStreamingContent, getPopularMovies, getPopularTVShows, getMoviesByGenre, getTVShowsByGenre, getMoviesByRegion } from '../utils/api';
 import { getSetting, getWatched } from '../utils/storage';
 import MovieList from '../components/MovieList';
-import { FaFire, FaFilm, FaTv } from 'react-icons/fa';
+import { FaFilm, FaTv, FaTheaterMasks } from 'react-icons/fa';
 import { GiJapan } from 'react-icons/gi';
+import { MdLiveTv } from 'react-icons/md';
 
 const Home = () => {
-  const [trending, setTrending] = useState([]);
+  const [theatreMovies, setTheatreMovies] = useState([]);
+  const [streamingContent, setStreamingContent] = useState([]);
   const [popularMovies, setPopularMovies] = useState([]);
   const [popularTVShows, setPopularTVShows] = useState([]);
   const [animeShows, setAnimeShows] = useState([]);
@@ -65,14 +67,16 @@ const Home = () => {
     setTVPage(1);
     setAnimePage(1);
     try {
-      const [trendingData, moviesData, tvData, animeData] = await Promise.all([
-        getTrending('all', 'day'),
+      const [theatreData, streamingData, moviesData, tvData, animeData] = await Promise.all([
+        getNowPlayingMovies(1),
+        getStreamingContent('movie', 1),
         getPopularMovies(1),
         getPopularTVShows(1),
         getTVShowsByGenre(16, 1), // Genre 16 is Animation
       ]);
 
-      setTrending(filterWatchedItems(trendingData.results)); // Trending has its own media_type
+      setTheatreMovies(filterWatchedItems(theatreData.results, 'movie'));
+      setStreamingContent(filterWatchedItems(streamingData.results, 'movie'));
       setPopularMovies(filterWatchedItems(moviesData.results, 'movie'));
       setPopularTVShows(filterWatchedItems(tvData.results, 'tv'));
       setAnimeShows(filterWatchedItems(animeData.results, 'tv'));
@@ -220,86 +224,71 @@ const Home = () => {
     <div className="min-h-screen bg-black transition-colors duration-200">
       {/* Content Section */}
       <div className="container mx-auto px-4 py-8">
-        {/* Trending Today Section - Always show at top unless genre/category filter is active */}
+        {/* Popular in Theatres Section - Always show at top unless genre/category filter is active */}
         {!selectedGenre && !selectedCategory && (
-          <div className="mb-8">
-            <MovieList
-              title="Trending Today"
-              icon={<FaFire className="text-red-600" />}
-              items={trending}
-              loading={loading}
-              emptyMessage="No trending items available"
-            />
-          </div>
+          <>
+            <div className="mb-16">
+              <MovieList
+                title="Popular in Theatres"
+                items={theatreMovies}
+                loading={loading}
+                emptyMessage="No movies in theatres available"
+                limit={12}
+                viewAllLink="/view-all/theatre"
+              />
+            </div>
+            
+            {/* Popular on Streaming Section */}
+            <div className="mb-16">
+              <MovieList
+                title="Popular on Streaming"
+                items={streamingContent}
+                loading={loading}
+                emptyMessage="No streaming content available"
+                limit={12}
+                viewAllLink="/view-all/streaming"
+              />
+            </div>
+          </>
         )}
 
         {/* Popular Movies */}
-        <div className="mb-8">
+        <div className="mb-16">
           <MovieList
-            title={selectedCategory ? `${selectedCategory.name}` : selectedGenre ? "Movies in Genre" : "Popular Movies"}
-            icon={<FaFilm className="text-red-600" />}
+            title={selectedCategory ? `${selectedCategory.name}` : selectedGenre ? "Movies in Genre" : "Movies"}
             items={popularMovies}
             loading={loading}
             emptyMessage="No movies available"
+            limit={12}
+            viewAllLink={!selectedCategory && !selectedGenre ? "/view-all/movies" : null}
           />
-          {hasMoreMovies && !loading && popularMovies.length > 0 && (
-            <div className="text-center mt-6">
-              <button
-                onClick={loadMoreMovies}
-                disabled={loadingMore}
-                className="bg-gradient-red hover:shadow-red text-white px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-card"
-              >
-                {loadingMore ? 'Loading...' : 'Load More Movies'}
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Popular TV Shows - Hide when category filter is active */}
         {!selectedCategory && (
-          <div className="mb-8">
+          <div className="mb-16">
             <MovieList
-              title={selectedGenre ? "TV Shows in Genre" : "Popular TV Shows"}
-              icon={<FaTv className="text-red-600" />}
+              title={selectedGenre ? "TV Shows in Genre" : "Series"}
               items={popularTVShows}
               loading={loading}
               emptyMessage="No TV shows available"
+              limit={12}
+              viewAllLink={!selectedGenre ? "/view-all/tv" : null}
             />
-            {hasMoreTV && !loading && popularTVShows.length > 0 && (
-              <div className="text-center mt-6">
-                <button
-                  onClick={loadMoreTV}
-                  disabled={loadingMore}
-                  className="bg-gradient-red hover:shadow-red text-white px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-card"
-                >
-                  {loadingMore ? 'Loading...' : 'Load More TV Shows'}
-                </button>
-              </div>
-            )}
           </div>
         )}
 
         {/* Anime Section - Only show if no genre filter */}
         {!selectedGenre && (
-          <div className="mb-8">
+          <div className="mb-16">
             <MovieList
-              title="Anime & Animation"
-              icon={<GiJapan className="text-red-600" />}
+              title="Anime"
               items={animeShows}
               loading={loading}
               emptyMessage="No anime shows available"
+              limit={12}
+              viewAllLink="/view-all/anime"
             />
-            {hasMoreAnime && !loading && animeShows.length > 0 && (
-              <div className="text-center mt-6">
-                <button
-                  onClick={loadMoreAnime}
-                  disabled={loadingMore}
-                  className="bg-gradient-red hover:shadow-red text-white px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-card"
-                >
-                  {loadingMore ? 'Loading...' : 'Load More Anime'}
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>
