@@ -1,4 +1,4 @@
-# Watchly 🎬
+# Watchly 
 
 A modern, feature-rich Progressive Web App (PWA) for tracking movies, TV shows, and anime. Built with React and powered by The Movie Database (TMDb) API, Watchly offers a seamless experience across web and mobile platforms.
 
