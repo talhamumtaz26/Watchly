@@ -152,7 +152,7 @@ const WatchLater = () => {
         {/* Stats Card */}
         {items.length > 0 && (
           <section className="mb-8">
-            <div className="bg-[#1c1c1e] rounded-[18px] py-6 px-4 mx-auto max-w-[600px]">
+            <div className="bg-[#1c1c1e] rounded-[18px] py-6 px-4 mx-auto max-w-[600px] md:max-w-none">
               <div className="grid grid-cols-[1fr_1fr_1fr_1.4fr] divide-x-2 divide-[#2c2c2e]">
                 <div className="flex flex-col items-center justify-center px-2 py-2">
                   <p className="text-[20px] font-bold text-white leading-none mb-1.5">
@@ -192,7 +192,7 @@ const WatchLater = () => {
         )}
 
         {/* Movies Grid */}
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-5">
             {items.map((item) => (
               <div key={item.id} className="relative">
                 <MovieCard item={item} />

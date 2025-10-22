@@ -10,6 +10,8 @@ import {
   getRedirectResult,
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
+import { syncLocalToCloud } from '../utils/cloudStorage';
+import { getWatchLater, getWatched } from '../utils/storage';
 
 const AuthContext = createContext();
 
@@ -52,6 +54,29 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Sync local data to cloud when user logs in
+  const syncDataOnLogin = async (user) => {
+    if (user) {
+      try {
+        // Get local data
+        const localWatchLater = getWatchLater();
+        const localWatched = getWatched();
+        
+        // Only sync if there's local data
+        if (localWatchLater.length > 0 || localWatched.length > 0) {
+          console.log('Syncing local data to cloud...');
+          await syncLocalToCloud(user.uid, {
+            watchLater: localWatchLater,
+            watched: localWatched,
+          });
+          console.log('Sync completed successfully');
+        }
+      } catch (error) {
+        console.error('Error syncing data on login:', error);
+      }
+    }
+  };
+
   // Listen for auth state changes
   useEffect(() => {
     // Check for redirect result on component mount
@@ -61,6 +86,8 @@ export const AuthProvider = ({ children }) => {
           // User signed in successfully after redirect
           console.log('Google sign-in successful:', result.user);
           setCurrentUser(result.user);
+          // Sync local data to cloud
+          syncDataOnLogin(result.user);
         }
       })
       .catch((error) => {
@@ -80,6 +107,10 @@ export const AuthProvider = ({ children }) => {
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
+      // Sync data when user state changes (login)
+      if (user) {
+        syncDataOnLogin(user);
+      }
       setLoading(false);
     });
 

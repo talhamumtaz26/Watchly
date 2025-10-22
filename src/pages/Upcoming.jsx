@@ -108,43 +108,43 @@ const Upcoming = () => {
         <div className="flex justify-center gap-2 mb-8 overflow-x-auto">
           <button
             onClick={() => setFilter('all')}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-all text-xs whitespace-nowrap ${
+            className={`px-2.5 py-1 rounded-lg font-semibold transition-all text-xs whitespace-nowrap ${
               filter === 'all'
                 ? 'bg-red-600 text-white'
                 : 'bg-card-darker text-gray-400 hover:text-white hover:bg-card-dark border border-white/10'
             }`}
           >
-            All ({upcomingItems.length})
+            All
           </button>
           <button
             onClick={() => setFilter('movies')}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-all text-xs whitespace-nowrap ${
+            className={`px-2.5 py-1 rounded-lg font-semibold transition-all text-xs whitespace-nowrap ${
               filter === 'movies'
                 ? 'bg-red-600 text-white'
                 : 'bg-card-darker text-gray-400 hover:text-white hover:bg-card-dark border border-white/10'
             }`}
           >
-            Movies ({upcomingItems.filter(i => i.media_type === 'movie').length})
+            Movies
           </button>
           <button
             onClick={() => setFilter('tv')}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-all text-xs whitespace-nowrap ${
+            className={`px-2.5 py-1 rounded-lg font-semibold transition-all text-xs whitespace-nowrap ${
               filter === 'tv'
                 ? 'bg-red-600 text-white'
                 : 'bg-card-darker text-gray-400 hover:text-white hover:bg-card-dark border border-white/10'
             }`}
           >
-            Series ({upcomingItems.filter(i => i.media_type === 'tv' && !i.isAnime).length})
+            Series
           </button>
           <button
             onClick={() => setFilter('anime')}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-all text-xs whitespace-nowrap ${
+            className={`px-2.5 py-1 rounded-lg font-semibold transition-all text-xs whitespace-nowrap ${
               filter === 'anime'
                 ? 'bg-red-600 text-white'
                 : 'bg-card-darker text-gray-400 hover:text-white hover:bg-card-dark border border-white/10'
             }`}
           >
-            Anime ({upcomingItems.filter(i => i.isAnime).length})
+            Anime
           </button>
         </div>
 

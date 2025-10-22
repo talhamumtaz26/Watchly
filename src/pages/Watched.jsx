@@ -166,7 +166,7 @@ const Watched = () => {
         {/* Stats Card */}
         {items.length > 0 && (
           <section className="mb-8">
-            <div className="bg-[#1c1c1e] rounded-[18px] py-6 px-4 mx-auto max-w-[600px]">
+            <div className="bg-[#1c1c1e] rounded-[18px] py-6 px-4 mx-auto max-w-[600px] md:max-w-none">
               <div className="grid grid-cols-[1fr_1fr_1fr_1fr] divide-x-2 divide-[#2c2c2e]">
                 <div className="flex flex-col items-center justify-center px-1.5 py-2">
                   <p className="text-[20px] font-bold text-white leading-none mb-1.5">
@@ -208,7 +208,7 @@ const Watched = () => {
         {/* Filter and Sort Section */}
         {items.length > 0 && (
           <section className="mb-6">
-            <div className="bg-[#1c1c1e] rounded-[18px] p-5 mx-auto max-w-[600px]">
+            <div className="bg-[#1c1c1e] rounded-[18px] p-5 mx-auto max-w-[600px] md:max-w-none">
               {/* Filter */}
               <div className="mb-4">
                 <h3 className="text-xs font-semibold text-white mb-2">Filter:</h3>
@@ -264,7 +264,7 @@ const Watched = () => {
         )}
 
         {/* Movies Section */}
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-5">
           {sortedItems.map((item) => (
             <div key={item.id} className="relative">
               <MovieCard item={item} />
