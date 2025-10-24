@@ -26,6 +26,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(false);
 
   // Sign up with email and password
   const signup = (email, password) => {
@@ -43,11 +44,18 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Sign in with Google
-  const signInWithGoogle = () => {
+  const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    // Use redirect on mobile, popup on desktop
+    provider.setCustomParameters({
+      prompt: 'select_account'
+    });
+    
+    // Always use redirect for Capacitor apps (better mobile support)
+    const isCapacitor = window.Capacitor !== undefined;
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) {
+    
+    if (isCapacitor || isMobile) {
+      setAuthLoading(true);
       return signInWithRedirect(auth, provider);
     } else {
       return signInWithPopup(auth, provider);
@@ -79,38 +87,53 @@ export const AuthProvider = ({ children }) => {
 
   // Listen for auth state changes
   useEffect(() => {
+    let redirectChecked = false;
+    
     // Check for redirect result on component mount
     getRedirectResult(auth)
       .then((result) => {
-        if (result) {
+        redirectChecked = true;
+        setAuthLoading(false);
+        
+        if (result && result.user) {
           // User signed in successfully after redirect
           console.log('Google sign-in successful:', result.user);
           setCurrentUser(result.user);
           // Sync local data to cloud
           syncDataOnLogin(result.user);
+          // Redirect to home page
+          window.location.href = '/';
         }
       })
       .catch((error) => {
+        redirectChecked = true;
+        setAuthLoading(false);
         console.error('Error with redirect result:', error);
-        // Clear any pending auth state
+        
+        // Handle specific errors
         if (error.code === 'auth/unauthorized-domain') {
-          alert('This domain is not authorized for Google Sign-In. Please check Firebase Console.');
+          console.error('Unauthorized domain. Check Firebase Console authorized domains.');
         } else if (error.code === 'auth/popup-blocked') {
-          alert('Popup was blocked. Please allow popups for this site.');
-        } else if (error.code === 'auth/cancelled-popup-request') {
-          // User closed the popup, ignore
-        } else {
-          alert('Authentication error: ' + error.message);
+          console.error('Popup was blocked.');
+        } else if (error.code !== 'auth/cancelled-popup-request') {
+          console.error('Authentication error:', error.message);
         }
-        setLoading(false);
+      })
+      .finally(() => {
+        if (!redirectChecked) {
+          setAuthLoading(false);
+        }
       });
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log('Auth state changed:', user ? 'User logged in' : 'User logged out');
       setCurrentUser(user);
+      
       // Sync data when user state changes (login)
-      if (user) {
+      if (user && !redirectChecked) {
         syncDataOnLogin(user);
       }
+      
       setLoading(false);
     });
 
@@ -124,6 +147,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     signInWithGoogle,
     loading,
+    authLoading,
   };
 
   return (

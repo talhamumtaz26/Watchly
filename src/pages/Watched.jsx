@@ -19,6 +19,17 @@ const Watched = () => {
     loadItems();
   }, [user]);
 
+  // Reload items when window regains focus (for cross-device sync)
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Window focused, reloading watched items...');
+      loadItems();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [user]);
+
   const loadItems = async () => {
     try {
       if (user) {

@@ -186,10 +186,7 @@ const AppSettings = () => {
                 <p className="text-xs text-gray-400">Author</p>
                 <p className="font-semibold">Talha Malik</p>
               </div>
-              <div>
-                <p className="text-xs text-gray-400">Type</p>
-                <p className="font-semibold">Movie Tracker</p>
-              </div>
+
             </div>
           </div>
         </div>
