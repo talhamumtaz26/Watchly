@@ -4,6 +4,10 @@ const config: CapacitorConfig = {
   appId: 'com.watchly.app',
   appName: 'Watchly',
   webDir: 'build',
+  server: {
+    hostname: 'watchly-1a156.web.app',
+    androidScheme: 'https'
+  },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,

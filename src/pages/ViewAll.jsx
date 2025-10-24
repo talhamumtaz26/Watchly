@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getNowPlayingMovies, getStreamingContent, getPopularMovies, getPopularTVShows, getTVShowsByGenre } from '../utils/api';
 import { getSetting, getWatched } from '../utils/storage';
 import MovieCard from '../components/MovieCard';
@@ -9,6 +9,7 @@ import { FiArrowLeft } from 'react-icons/fi';
 const ViewAll = () => {
   const { type } = useParams(); // theatre, streaming, movies, tv, anime
   const navigate = useNavigate();
+  const location = useLocation();
   const [items, setItems] = useState([]);
   const [allItems, setAllItems] = useState([]); // Store all items before filtering
   const [loading, setLoading] = useState(true);
@@ -106,49 +107,74 @@ const ViewAll = () => {
 
   const config = getPageConfig();
 
-  // Restore state BEFORE first paint
+  // Restore state BEFORE first paint - runs on mount and when navigating back
   useLayoutEffect(() => {
     if (config) {
-      console.log('ViewAll mounted, type:', type);
+      console.log('=== ViewAll Layout Effect ===');
+      console.log('Type:', type);
+      console.log('Location key:', location.key);
+      console.log('Current items count:', items.length);
+      console.log('shouldRestoreRef:', shouldRestoreRef.current);
+      
       const savedState = sessionStorage.getItem(`viewall_state_${type}`);
-      console.log('Looking for saved state with key:', `viewall_state_${type}`);
-      console.log('Found saved state:', savedState);
+      console.log('Saved state exists:', !!savedState);
       
       if (savedState) {
         try {
           const { items: savedItems, page: savedPage, hasMore: savedHasMore, scrollPos } = JSON.parse(savedState);
-          console.log('Restoring state:', { itemCount: savedItems.length, savedPage, scrollPos });
-          
-          shouldRestoreRef.current = true;
+          console.log('Saved state details:', {
+            itemCount: savedItems.length,
+            page: savedPage,
+            hasMore: savedHasMore,
+            scrollPos: scrollPos
+          });
           
           // If we have saved items, restore them immediately
           if (savedItems && savedItems.length > 0) {
+            console.log('RESTORING ITEMS AND SCROLL');
+            shouldRestoreRef.current = true;
             setItems(savedItems);
             setPage(savedPage);
             setHasMore(savedHasMore);
             setLoading(false);
             
-            // Restore scroll IMMEDIATELY before paint
+            // Restore scroll position
             if (scrollPos) {
-              console.log('Restoring scroll immediately to:', scrollPos);
-              window.scrollTo(0, scrollPos);
+              console.log('Scrolling to position:', scrollPos);
+              // Use requestAnimationFrame to ensure DOM is ready
+              requestAnimationFrame(() => {
+                window.scrollTo(0, scrollPos);
+                console.log('Scroll applied, current position:', window.scrollY);
+              });
             }
+            
+            // Mark restoration complete after a delay
+            setTimeout(() => {
+              shouldRestoreRef.current = false;
+              console.log('Restoration complete');
+            }, 2500);
+            
+            return; // IMPORTANT: Exit early to prevent loadData() from running
           } else {
             // No items saved, load fresh
+            console.log('No items in saved state, loading fresh');
             sessionStorage.removeItem(`viewall_state_${type}`);
-            loadData();
           }
         } catch (error) {
           console.error('Error restoring state:', error);
           sessionStorage.removeItem(`viewall_state_${type}`);
-          loadData();
         }
       } else {
-        console.log('No saved state, loading fresh data');
+        console.log('No saved state found, loading fresh data');
+      }
+      
+      // Only load data if we didn't restore from saved state
+      if (!shouldRestoreRef.current) {
         loadData();
       }
     }
-  }, [type]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type]); // Only depend on type, not location.key
 
   // Additional scroll restoration after images load
   useEffect(() => {
@@ -171,11 +197,10 @@ const ViewAll = () => {
         setTimeout(restoreScroll, 1000);
         setTimeout(restoreScroll, 1500);
         
-        // Final cleanup
+        // Final cleanup - DON'T remove state, just mark restoration complete
         setTimeout(() => {
           restoreScroll();
           shouldRestoreRef.current = false;
-          sessionStorage.removeItem(`viewall_state_${type}`);
           console.log('Scroll restoration complete. Final position:', window.scrollY);
         }, 2000);
       }
@@ -258,13 +283,39 @@ const ViewAll = () => {
     setLoading(true);
     setPage(1);
     try {
-      // Pass sortBy and filters to API for server-side sorting
+      // Load 50 pages (1000 items) all at once initially
       const sortParam = config.supportsSort ? sortBy : null;
-      const data = await config.fetchFunction(1, sortParam, selectedYear, selectedLetter);
-      const filteredItems = filterWatchedItems(data.results, config.mediaType);
+      const pagesToLoad = 50;
+      const promises = [];
+      
+      // Create promises for all pages
+      for (let i = 1; i <= pagesToLoad; i++) {
+        promises.push(config.fetchFunction(i, sortParam, selectedYear, selectedLetter));
+      }
+      
+      // Load all pages simultaneously
+      console.log(`Loading ${pagesToLoad} pages...`);
+      const results = await Promise.all(promises);
+      
+      // Combine all results
+      let allResults = [];
+      let maxPages = 0;
+      results.forEach(data => {
+        if (data && data.results) {
+          allResults = [...allResults, ...data.results];
+          if (data.total_pages > maxPages) {
+            maxPages = data.total_pages;
+          }
+        }
+      });
+      
+      const filteredItems = filterWatchedItems(allResults, config.mediaType);
+      console.log(`Loaded ${filteredItems.length} items total. Max pages available: ${maxPages}`);
       setAllItems(filteredItems);
       setItems(filteredItems);
-      setHasMore(data.page < data.total_pages);
+      setPage(pagesToLoad);
+      // Enable loading more if there are more pages available
+      setHasMore(pagesToLoad < maxPages);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -274,7 +325,9 @@ const ViewAll = () => {
 
   // Handle sort/filter change - reload data with new sorting/filtering
   useEffect(() => {
-    if (config && config.supportsSort) {
+    // Don't reload if we're currently restoring state
+    if (config && config.supportsSort && !shouldRestoreRef.current) {
+      console.log('Sort/filter changed, reloading data');
       loadData();
     }
   }, [sortBy, selectedYear, selectedLetter]);
@@ -286,15 +339,35 @@ const ViewAll = () => {
     const nextPage = page + 1;
 
     try {
-      // Pass sortBy and filters to API for server-side sorting
+      // Load next 10 pages at once when scrolling
       const sortParam = config.supportsSort ? sortBy : null;
-      const data = await config.fetchFunction(nextPage, sortParam, selectedYear, selectedLetter);
-      const newFilteredItems = filterWatchedItems(data.results, config.mediaType);
+      const batchSize = 10;
+      const promises = [];
+      
+      for (let i = nextPage; i < nextPage + batchSize; i++) {
+        promises.push(config.fetchFunction(i, sortParam, selectedYear, selectedLetter));
+      }
+      
+      console.log(`Loading ${batchSize} more pages (${nextPage} to ${nextPage + batchSize - 1})...`);
+      const results = await Promise.all(promises);
+      
+      // Combine results
+      let newResults = [];
+      let hasMorePages = false;
+      results.forEach(data => {
+        if (data && data.results) {
+          newResults = [...newResults, ...data.results];
+          hasMorePages = data.page < data.total_pages;
+        }
+      });
+      
+      const newFilteredItems = filterWatchedItems(newResults, config.mediaType);
       const updatedAllItems = [...allItems, ...newFilteredItems];
       setAllItems(updatedAllItems);
       setItems(updatedAllItems);
-      setPage(nextPage);
-      setHasMore(data.page < data.total_pages);
+      setPage(nextPage + batchSize - 1);
+      setHasMore(hasMorePages);
+      console.log(`Loaded ${newFilteredItems.length} more items. Total: ${updatedAllItems.length}`);
     } catch (error) {
       console.error('Error loading more data:', error);
     } finally {

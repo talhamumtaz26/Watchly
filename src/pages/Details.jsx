@@ -27,6 +27,15 @@ import {
   isEpisodeWatched,
   getSeasonProgress,
 } from '../utils/storage';
+import {
+  addToWatchLaterCloud,
+  addToWatchedCloud,
+  removeFromWatchLaterCloud,
+  removeFromWatchedCloud,
+  isInWatchLaterCloud,
+  isWatchedCloud,
+} from '../utils/cloudStorage';
+import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
 import MovieCard from '../components/MovieCard';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -35,6 +44,7 @@ const Details = () => {
   const { mediaType, id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { user } = useAuth();
   const [details, setDetails] = useState(null);
   const [credits, setCredits] = useState(null);
   const [videos, setVideos] = useState([]);
@@ -103,12 +113,19 @@ const Details = () => {
     }
   };
 
-  const checkStatus = () => {
-    setInWatchLater(isInWatchLater(parseInt(id), mediaType));
-    setWatched(isWatched(parseInt(id), mediaType));
+  const checkStatus = async () => {
+    if (user) {
+      const inWL = await isInWatchLaterCloud(user.uid, parseInt(id), mediaType);
+      const isW = await isWatchedCloud(user.uid, parseInt(id), mediaType);
+      setInWatchLater(inWL);
+      setWatched(isW);
+    } else {
+      setInWatchLater(isInWatchLater(parseInt(id), mediaType));
+      setWatched(isWatched(parseInt(id), mediaType));
+    }
   };
 
-  const handleAddToWatchLater = () => {
+  const handleAddToWatchLater = async () => {
     if (!details) return;
 
     // Calculate total runtime for TV shows
@@ -133,26 +150,39 @@ const Details = () => {
       number_of_seasons: details.number_of_seasons,
     };
 
-    if (addToWatchLater(item)) {
-      setInWatchLater(true);
-      // Removed toast notification
+    if (user) {
+      // Use cloud storage
+      const success = await addToWatchLaterCloud(user.uid, item);
+      if (success) {
+        setInWatchLater(true);
+      }
     } else {
-      // Already in list - no notification
+      // Use local storage
+      if (addToWatchLater(item)) {
+        setInWatchLater(true);
+      }
     }
   };
 
-  const handleRemoveFromWatchLater = () => {
-    removeFromWatchLater(parseInt(id), mediaType);
+  const handleRemoveFromWatchLater = async () => {
+    if (user) {
+      await removeFromWatchLaterCloud(user.uid, parseInt(id), mediaType);
+    } else {
+      removeFromWatchLater(parseInt(id), mediaType);
+    }
     setInWatchLater(false);
-    // Removed toast notification
   };
 
-  const handleMarkAsWatched = () => {
+  const handleMarkAsWatched = async () => {
     if (!details) return;
 
     // If already watched, remove from watched
     if (watched) {
-      removeFromWatched(parseInt(id), mediaType);
+      if (user) {
+        await removeFromWatchedCloud(user.uid, parseInt(id), mediaType);
+      } else {
+        removeFromWatched(parseInt(id), mediaType);
+      }
       setWatched(false);
       return;
     }
@@ -189,28 +219,35 @@ const Details = () => {
 
     console.log('Marking as watched:', item);
 
-    if (addToWatched(item)) {
-      setWatched(true);
-      setInWatchLater(false);
-      // Removed toast notification
-      
-      // For TV shows, mark all episodes as watched
-      if (mediaType === 'tv' && details.seasons) {
-        details.seasons.forEach(season => {
-          if (season.season_number > 0) { // Skip specials (season 0)
-            for (let ep = 1; ep <= season.episode_count; ep++) {
-              markEpisodeWatched(
-                parseInt(id),
-                season.season_number,
-                ep,
-                details.episode_run_time?.[0] || 45
-              );
-            }
-          }
-        });
+    if (user) {
+      // Use cloud storage
+      const success = await addToWatchedCloud(user.uid, item);
+      if (success) {
+        setWatched(true);
+        setInWatchLater(false);
       }
     } else {
-      // Already watched - no notification
+      // Use local storage
+      if (addToWatched(item)) {
+        setWatched(true);
+        setInWatchLater(false);
+        
+        // For TV shows, mark all episodes as watched
+        if (mediaType === 'tv' && details.seasons) {
+          details.seasons.forEach(season => {
+            if (season.season_number > 0) { // Skip specials (season 0)
+              for (let ep = 1; ep <= season.episode_count; ep++) {
+                markEpisodeWatched(
+                  parseInt(id),
+                  season.season_number,
+                  ep,
+                  details.episode_run_time?.[0] || 45
+                );
+              }
+            }
+          });
+        }
+      }
     }
   };
 
