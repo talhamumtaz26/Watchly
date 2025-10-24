@@ -114,12 +114,17 @@ const Details = () => {
   };
 
   const checkStatus = async () => {
+    console.log('Checking status - User:', user ? user.uid : 'Not logged in');
+    
     if (user) {
+      console.log('Checking cloud status');
       const inWL = await isInWatchLaterCloud(user.uid, parseInt(id), mediaType);
       const isW = await isWatchedCloud(user.uid, parseInt(id), mediaType);
+      console.log('Cloud status - In Watch Later:', inWL, 'Watched:', isW);
       setInWatchLater(inWL);
       setWatched(isW);
     } else {
+      console.log('Checking local storage status');
       setInWatchLater(isInWatchLater(parseInt(id), mediaType));
       setWatched(isWatched(parseInt(id), mediaType));
     }
@@ -150,14 +155,19 @@ const Details = () => {
       number_of_seasons: details.number_of_seasons,
     };
 
+    console.log('Adding to Watch Later - User:', user ? user.uid : 'Not logged in');
+    
     if (user) {
       // Use cloud storage
+      console.log('Using cloud storage for Watch Later');
       const success = await addToWatchLaterCloud(user.uid, item);
+      console.log('Cloud add result:', success);
       if (success) {
         setInWatchLater(true);
       }
     } else {
       // Use local storage
+      console.log('Using local storage for Watch Later');
       if (addToWatchLater(item)) {
         setInWatchLater(true);
       }
@@ -165,9 +175,13 @@ const Details = () => {
   };
 
   const handleRemoveFromWatchLater = async () => {
+    console.log('Removing from Watch Later - User:', user ? user.uid : 'Not logged in');
+    
     if (user) {
+      console.log('Using cloud storage to remove');
       await removeFromWatchLaterCloud(user.uid, parseInt(id), mediaType);
     } else {
+      console.log('Using local storage to remove');
       removeFromWatchLater(parseInt(id), mediaType);
     }
     setInWatchLater(false);
@@ -219,15 +233,20 @@ const Details = () => {
 
     console.log('Marking as watched:', item);
 
+    console.log('Adding to Watched - User:', user ? user.uid : 'Not logged in');
+    
     if (user) {
       // Use cloud storage
+      console.log('Using cloud storage for Watched');
       const success = await addToWatchedCloud(user.uid, item);
+      console.log('Cloud add result:', success);
       if (success) {
         setWatched(true);
         setInWatchLater(false);
       }
     } else {
       // Use local storage
+      console.log('Using local storage for Watched');
       if (addToWatched(item)) {
         setWatched(true);
         setInWatchLater(false);
