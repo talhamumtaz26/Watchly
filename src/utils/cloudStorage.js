@@ -427,3 +427,54 @@ export const syncLocalToCloud = async (userId, localData) => {
     return false;
   }
 };
+  
+/**  
+ * Sync cloud data to localStorage (bidirectional sync) 
+ * @param {string} userId - User ID 
+ * @returns {Object} - Sync result with counts 
+ */ 
+export const syncCloudToLocal = async (userId) => { 
+  try { 
+    const { getWatchLater, getWatched, addToWatchLater: addToWatchLaterLocal, addToWatched: addToWatchedLocal } = await import('./storage.js'); 
+ 
+    const cloudWatchLater = await getWatchLaterCloud(userId); 
+    const cloudWatched = await getWatchedCloud(userId); 
+    const localWatchLater = getWatchLater(); 
+    const localWatched = getWatched(); 
+ 
+    let syncedCounts = { watchLater: 0, watched: 0 }; 
+ 
+    for (const cloudItem of cloudWatchLater) { 
+      const exists = localWatchLater.some(item => item.id === cloudItem.id && item.media_type === cloudItem.media_type); 
+      if (!exists) { addToWatchLaterLocal(cloudItem); syncedCounts.watchLater++; } 
+    } 
+ 
+    for (const cloudItem of cloudWatched) { 
+      const exists = localWatched.some(item => item.id === cloudItem.id && item.media_type === cloudItem.media_type); 
+      if (!exists) { addToWatchedLocal(cloudItem); syncedCounts.watched++; } 
+    } 
+ 
+    console.log('Cloud data synced to local:', syncedCounts); 
+    return { success: true, counts: syncedCounts }; 
+  } catch (error) { 
+    console.error('Error syncing cloud to local:', error); 
+    return { success: false, error: error.message }; 
+  } 
+}; 
+ 
+/** 
+ * Bidirectional sync: Sync local to cloud AND cloud to local 
+ * @param {string} userId - User ID 
+ * @param {Object} localData - Local data to sync 
+ * @returns {Object} - Sync result 
+ */ 
+export const syncBidirectional = async (userId, localData) => { 
+  try { 
+    await syncLocalToCloud(userId, localData); 
+    const result = await syncCloudToLocal(userId); 
+    return result; 
+  } catch (error) { 
+    console.error('Error in bidirectional sync:', error); 
+    return { success: false, error: error.message }; 
+  } 
+};

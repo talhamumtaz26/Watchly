@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clearAllData, exportData, importData, getSetting, updateSetting, getWatchLater, getWatched } from '../utils/storage';
-import { syncBidirectional } from '../utils/cloudStorage';
+import { syncLocalToCloud } from '../utils/cloudStorage';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
 import { FiArrowLeft, FiDatabase, FiDownload, FiUpload, FiTrash2, FiInfo, FiEye, FiEyeOff, FiCloud, FiCheck } from 'react-icons/fi';
@@ -100,23 +100,30 @@ const AppSettings = () => {
     try {
       // Get local data
       const localWatchLater = getWatchLater();
-      const localWatched = getWatched();      console.log('Syncing to cloud...', {
+      const localWatched = getWatched();
+      
+      if (localWatchLater.length === 0 && localWatched.length === 0) {
+        toast.error('No local data to sync');
+        setSyncing(false);
+        return;
+      }
+
+      console.log('Syncing to cloud...', {
         watchLater: localWatchLater.length,
         watched: localWatched.length
       });
 
-      // Sync bidirectionally
-      const result = await syncBidirectional(currentUser.uid, {
+      // Sync to cloud
+      const success = await syncLocalToCloud(currentUser.uid, {
         watchLater: localWatchLater,
         watched: localWatched,
       });
 
-      if (result.success) {
-        toast.success('Data synced successfully!');
+      if (success) {
         setSynced(true);
         sessionStorage.setItem('lastSyncTime', Date.now().toString());
       } else {
-        toast.error('Failed to sync data');
+        toast.error('Failed to sync to cloud');
       }
     } catch (error) {
       console.error('Sync error:', error);
@@ -194,7 +201,7 @@ const AppSettings = () => {
                 <div className="flex items-center justify-between py-2">
                   <div className="flex-1 pr-4">
                     <p className="font-semibold text-sm text-white">Sync to Google Cloud</p>
-                    <p className="text-xs text-gray-400">Sync data between device and cloud</p>
+                    <p className="text-xs text-gray-400">Upload local data to cloud storage</p>
                   </div>
                   <button
                     onClick={handleSyncToCloud}
@@ -234,7 +241,7 @@ const AppSettings = () => {
                     <strong>Logged in as:</strong> {currentUser.email}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    Data syncs automatically when you add/remove items. Use this button to manually sync all data bidirectionally between this device and cloud.
+                    Your data automatically syncs when you add/remove items. Use this button to manually sync any local data to cloud.
                   </p>
                 </div>
               </div>
@@ -323,4 +330,3 @@ const AppSettings = () => {
 };
 
 export default AppSettings;
-

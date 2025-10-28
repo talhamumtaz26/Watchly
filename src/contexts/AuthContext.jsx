@@ -10,7 +10,7 @@ import {
   getRedirectResult,
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
-import { syncLocalToCloud } from '../utils/cloudStorage';
+import { syncBidirectional } from '../utils/cloudStorage';
 import { getWatchLater, getWatched } from '../utils/storage';
 
 const AuthContext = createContext();
@@ -62,23 +62,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Sync local data to cloud when user logs in
+  // Sync data bidirectionally when user logs in
   const syncDataOnLogin = async (user) => {
     if (user) {
       try {
         // Get local data
         const localWatchLater = getWatchLater();
         const localWatched = getWatched();
-        
-        // Only sync if there's local data
-        if (localWatchLater.length > 0 || localWatched.length > 0) {
-          console.log('Syncing local data to cloud...');
-          await syncLocalToCloud(user.uid, {
+        console.log('Syncing data bidirectionally...');
+        await syncBidirectional(user.uid, {
             watchLater: localWatchLater,
             watched: localWatched,
           });
           console.log('Sync completed successfully');
-        }
       } catch (error) {
         console.error('Error syncing data on login:', error);
       }
@@ -156,3 +152,5 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+
