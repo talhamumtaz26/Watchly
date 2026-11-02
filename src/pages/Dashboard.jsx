@@ -1,10 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getWatched, getWatchLater, getWatchTimeStats } from '../utils/storage';
+import {
+  getWatchedCloud,
+  getWatchLaterCloud,
+  subscribeToWatchedCloud,
+  subscribeToWatchLaterCloud,
+} from '../utils/cloudStorage';
+import {
+  formatItemDate,
+  getItemDate,
+  getWatchTimeStats as getWatchTimeStatsFromItems,
+} from '../utils/watchStats';
+import { isAnimeItem } from '../utils/media';
+import { useAuth } from '../contexts/AuthContext';
 import { FiCheckCircle, FiClock, FiCalendar, FiList } from 'react-icons/fi';
 import { MdMovie, MdTv } from 'react-icons/md';
 
 const Dashboard = () => {
+  const { currentUser } = useAuth();
   const [stats, setStats] = useState({
     watched: [],
     watchLater: [],
@@ -12,40 +26,64 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
-    loadStats();
-  }, []);
+    if (currentUser) {
+      const handleSubscriptionError = () => {
+        console.error('Unable to sync dashboard data in real time');
+      };
+      const unsubscribeWatched = subscribeToWatchedCloud(
+        currentUser.uid,
+        (watched) => setStats((previous) => ({
+          ...previous,
+          watched,
+          watchTime: getWatchTimeStatsFromItems(watched),
+        })),
+        handleSubscriptionError
+      );
+      const unsubscribeWatchLater = subscribeToWatchLaterCloud(
+        currentUser.uid,
+        (watchLater) => setStats((previous) => ({ ...previous, watchLater })),
+        handleSubscriptionError
+      );
+      return () => {
+        unsubscribeWatched();
+        unsubscribeWatchLater();
+      };
+    }
 
-  const loadStats = () => {
-    const watched = getWatched();
-    const watchLater = getWatchLater();
-    const watchTime = getWatchTimeStats();
+    loadStats();
+    // Reload when authentication changes; the loader reads currentUser.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
+
+  const loadStats = async () => {
+    if (currentUser) {
+      const [watched, watchLater] = await Promise.all([
+        getWatchedCloud(currentUser.uid),
+        getWatchLaterCloud(currentUser.uid),
+      ]);
+
+      setStats({ watched, watchLater, watchTime: getWatchTimeStatsFromItems(watched) });
+      return;
+    }
 
     setStats({
-      watched,
-      watchLater,
-      watchTime,
+      watched: getWatched(),
+      watchLater: getWatchLater(),
+      watchTime: getWatchTimeStats(),
     });
-  };
-
-  // Calculate genre statistics
-  const getGenreStats = () => {
-    const genreCounts = {};
-    stats.watched.forEach((item) => {
-      // Note: We'd need to store genres with items for this to work perfectly
-      // For now, we'll use a placeholder
-    });
-    return genreCounts;
   };
 
   // Calculate type statistics
   const getTypeStats = () => {
     const movies = stats.watched.filter((item) => item.media_type === 'movie').length;
-    const tvShows = stats.watched.filter((item) => item.media_type === 'tv').length;
-    const total = movies + tvShows;
+    const anime = stats.watched.filter((item) => isAnimeItem(item)).length;
+    const tvShows = stats.watched.filter((item) => item.media_type === 'tv' && !isAnimeItem(item)).length;
+    const total = movies + tvShows + anime;
 
     return {
       movies,
       tvShows,
+      anime,
       total,
       moviePercentage: total > 0 ? Math.round((movies / total) * 100) : 0,
       tvPercentage: total > 0 ? Math.round((tvShows / total) * 100) : 0,
@@ -62,7 +100,8 @@ const Dashboard = () => {
     };
 
     stats.watched.forEach((item) => {
-      const rating = item.vote_average || 0;
+      const rating = Number(item.user_rating);
+      if (!Number.isFinite(rating) || rating < 1) return;
       if (rating >= 8) distribution.excellent++;
       else if (rating >= 6) distribution.good++;
       else if (rating >= 4) distribution.average++;
@@ -75,15 +114,16 @@ const Dashboard = () => {
   // Get recent activity
   const getRecentActivity = () => {
     return stats.watched
-      .sort((a, b) => new Date(b.watchedDate) - new Date(a.watchedDate))
+      .slice()
+      .sort((a, b) => (getItemDate(b)?.getTime() || 0) - (getItemDate(a)?.getTime() || 0))
       .slice(0, 5);
   };
 
   // Get top rated watched
   const getTopRated = () => {
     return stats.watched
-      .filter((item) => item.vote_average > 0)
-      .sort((a, b) => b.vote_average - a.vote_average)
+      .filter((item) => Number.isFinite(Number(item.user_rating)) && Number(item.user_rating) >= 1)
+      .sort((a, b) => Number(b.user_rating) - Number(a.user_rating))
       .slice(0, 5);
   };
 
@@ -91,6 +131,7 @@ const Dashboard = () => {
   const ratingDist = getRatingDistribution();
   const recentActivity = getRecentActivity();
   const topRated = getTopRated();
+  const ratedCount = stats.watched.filter((item) => Number(item.user_rating) >= 1).length;
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark transition-colors duration-200">
@@ -124,11 +165,7 @@ const Dashboard = () => {
             <FiClock className="text-green-500 text-2xl mb-3" />
             <h3 className="text-2xl font-bold text-text-light dark:text-text-dark mb-1">
               {(() => {
-                const hours = stats.watchTime.hours || 0;
-                const mins = stats.watchTime.totalMinutes ? stats.watchTime.totalMinutes % 60 : 0;
-                if (hours === 0) return `${mins}m`;
-                if (mins === 0) return `${hours}h`;
-                return `${hours}h ${mins}m`;
+                return stats.watchTime.formatted || '0m';
               })()}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">Total Time</p>
@@ -157,15 +194,23 @@ const Dashboard = () => {
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">Series</p>
           </div>
+
+          <div className="bg-card-light dark:bg-card-dark rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+            <MdTv className="text-pink-400 text-2xl mb-3" />
+            <h3 className="text-2xl font-bold text-text-light dark:text-text-dark mb-1">
+              {typeStats.anime}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Anime</p>
+          </div>
         </div>
 
         {/* Rating Distribution */}
         <div className="mb-8">
           <div className="bg-card-light dark:bg-card-dark rounded-xl p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-text-light dark:text-text-dark mb-4 text-center">
-              Rating Distribution
+              Your Rating Distribution
             </h2>
-            {stats.watched.length > 0 ? (
+            {ratedCount > 0 ? (
               <div className="space-y-3">
                 <div>
                   <div className="flex justify-between items-center mb-1">
@@ -181,8 +226,8 @@ const Dashboard = () => {
                       className="bg-green-500 h-2 rounded-full transition-all duration-500"
                       style={{
                         width: `${
-                          stats.watched.length > 0
-                            ? (ratingDist.excellent / stats.watched.length) * 100
+                          ratedCount > 0
+                            ? (ratingDist.excellent / ratedCount) * 100
                             : 0
                         }%`,
                       }}
@@ -204,8 +249,8 @@ const Dashboard = () => {
                       className="bg-blue-500 h-2 rounded-full transition-all duration-500"
                       style={{
                         width: `${
-                          stats.watched.length > 0
-                            ? (ratingDist.good / stats.watched.length) * 100
+                          ratedCount > 0
+                            ? (ratingDist.good / ratedCount) * 100
                             : 0
                         }%`,
                       }}
@@ -227,8 +272,8 @@ const Dashboard = () => {
                       className="bg-yellow-500 h-2 rounded-full transition-all duration-500"
                       style={{
                         width: `${
-                          stats.watched.length > 0
-                            ? (ratingDist.average / stats.watched.length) * 100
+                          ratedCount > 0
+                            ? (ratingDist.average / ratedCount) * 100
                             : 0
                         }%`,
                       }}
@@ -250,8 +295,8 @@ const Dashboard = () => {
                       className="bg-red-500 h-2 rounded-full transition-all duration-500"
                       style={{
                         width: `${
-                          stats.watched.length > 0
-                            ? (ratingDist.poor / stats.watched.length) * 100
+                          ratedCount > 0
+                            ? (ratingDist.poor / ratedCount) * 100
                             : 0
                         }%`,
                       }}
@@ -286,9 +331,9 @@ const Dashboard = () => {
                       src={
                         item.poster_path
                           ? `https://image.tmdb.org/t/p/w92${item.poster_path}`
-                          : 'https://via.placeholder.com/92x138/1F2937/9CA3AF?text=No+Image'
+                          : '/placeholder-image.svg'
                       }
-                      alt={item.title}
+                      alt={item.title || item.name || 'Watched item'}
                       className="w-12 h-18 object-cover rounded"
                     />
                     <div className="flex-1">
@@ -296,12 +341,12 @@ const Dashboard = () => {
                         {item.title}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(item.watchedDate).toLocaleDateString()}
+                        {formatItemDate(item)}
                       </p>
                     </div>
-                    {item.vote_average > 0 && (
+                    {Number(item.user_rating) >= 1 && (
                       <span className="text-yellow-500 text-sm">
-                        ⭐ {item.vote_average.toFixed(1)}
+                        ⭐ {Number(item.user_rating).toFixed(1)}
                       </span>
                     )}
                   </Link>
@@ -334,9 +379,9 @@ const Dashboard = () => {
                       src={
                         item.poster_path
                           ? `https://image.tmdb.org/t/p/w92${item.poster_path}`
-                          : 'https://via.placeholder.com/92x138/1F2937/9CA3AF?text=No+Image'
+                          : '/placeholder-image.svg'
                       }
-                      alt={item.title}
+                      alt={item.title || item.name || 'Top-rated item'}
                       className="w-12 h-18 object-cover rounded"
                     />
                     <div className="flex-1">
@@ -348,7 +393,7 @@ const Dashboard = () => {
                       </p>
                     </div>
                     <span className="text-yellow-500 font-bold">
-                      ⭐ {item.vote_average.toFixed(1)}
+                      ⭐ {Number(item.user_rating).toFixed(1)}
                     </span>
                   </Link>
                 ))}

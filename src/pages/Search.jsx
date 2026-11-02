@@ -1,32 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { searchMedia, getImageUrl } from '../utils/api';
 import { FiSearch } from 'react-icons/fi';
+import { useToast } from '../components/Toast';
 
 const Search = () => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const toast = useToast();
+  const searchSequence = useRef(0);
 
   useEffect(() => {
+    const sequence = ++searchSequence.current;
+    const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       if (query.trim().length > 2) {
-        handleSearch();
+        handleSearch(controller.signal, sequence);
       } else {
         setResults([]);
       }
+      // Search is debounced and runs when the query changes.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, 500);
-    return () => clearTimeout(timeoutId);
-  }, [query]);
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+    // Search is debounced and runs when the query changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, toast]);
 
-  const handleSearch = async () => {
+  const handleSearch = async (signal, sequence) => {
     setLoading(true);
     try {
-      const data = await searchMedia(query, 'multi', 1);
-      setResults(data.results.slice(0, 20));
+      const data = await searchMedia(query, 'multi', 1, signal);
+      if (sequence === searchSequence.current) setResults(data.results.slice(0, 20));
     } catch (error) {
+      if (error.code === 'ERR_CANCELED' || error.name === 'CanceledError') return;
       console.error('Search error:', error);
+      toast.error('Search is temporarily unavailable. Please try again.');
       setResults([]);
     } finally {
       setLoading(false);
@@ -34,6 +48,10 @@ const Search = () => {
   };
 
   const handleResultClick = (item) => {
+    if (item.media_type === 'person') {
+      navigate(`/actor/${item.id}`);
+      return;
+    }
     const mediaType = item.media_type || (item.title ? 'movie' : 'tv');
     navigate(`/details/${mediaType}/${item.id}`);
   };
@@ -47,7 +65,8 @@ const Search = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="max-w-2xl mx-auto relative">
             <div className="relative">
-              <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search for movies, TV shows, actors..." className="w-full px-5 py-3 pl-12 bg-card-dark text-white rounded-xl border border-gray-800 focus:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-600/50 transition-all text-base" autoFocus />
+              <label htmlFor="media-search" className="sr-only">Search for movies, TV shows, or actors</label>
+              <input id="media-search" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search for movies, TV shows, actors..." className="w-full px-5 py-3 pl-12 bg-card-dark text-white rounded-xl border border-gray-800 focus:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-600/50 transition-all text-base" autoFocus />
               <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
             </div>
             {loading && (<div className="absolute right-4 top-1/2 transform -translate-y-1/2"><div className="animate-spin h-5 w-5 border-2 border-red-600 border-t-transparent rounded-full"></div></div>)}
@@ -71,9 +90,9 @@ const Search = () => {
                 const mediaType = item.media_type || (item.title ? 'movie' : 'tv');
                 const year = item.release_date?.split('-')[0] || item.first_air_date?.split('-')[0];
                 return (
-                  <div key={`${mediaType}-${item.id}`} onClick={() => handleResultClick(item)} className="bg-card-dark rounded-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-300 shadow-lg">
+                  <button type="button" key={`${mediaType}-${item.id}`} onClick={() => handleResultClick(item)} className="text-left w-full bg-card-dark rounded-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-300 shadow-lg">
                     <div className="relative">
-                      <img src={getImageUrl(item.poster_path, 'w500')} alt={title} className="w-full h-72 object-cover" onError={(e) => {e.target.src = 'https://via.placeholder.com/500x750/1F2937/9CA3AF?text=No+Image';}} />
+                      <img src={getImageUrl(item.poster_path, 'w500')} alt={title} className="w-full h-72 object-cover" onError={(e) => {e.currentTarget.onerror = null; e.currentTarget.src = '/placeholder-image.svg';}} />
                       {item.vote_average > 0 && (
                         <div className="absolute top-2 right-2 bg-black/95 text-yellow-500 px-2 py-1 rounded-lg text-xs font-bold">
                           ⭐ {item.vote_average.toFixed(1)}
@@ -87,7 +106,7 @@ const Search = () => {
                         {year && ` • ${year}`}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>

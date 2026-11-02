@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -8,10 +8,11 @@ import {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { syncBidirectional } from '../utils/cloudStorage';
-import { getWatchLater, getWatched } from '../utils/storage';
+import { getWatchLater, getWatched, setStorageUser } from '../utils/storage';
 
 const AuthContext = createContext();
 
@@ -27,6 +28,7 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
+  const syncedUserRef = useRef(null);
 
   // Sign up with email and password
   const signup = (email, password) => {
@@ -38,8 +40,11 @@ export const AuthProvider = ({ children }) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
+  const resetPassword = (email) => sendPasswordResetEmail(auth, email);
+
   // Logout
   const logout = () => {
+    setStorageUser(null);
     return signOut(auth);
   };
 
@@ -66,15 +71,14 @@ export const AuthProvider = ({ children }) => {
   const syncDataOnLogin = async (user) => {
     if (user) {
       try {
+        setStorageUser(user.uid);
         // Get local data
         const localWatchLater = getWatchLater();
         const localWatched = getWatched();
-        console.log('Syncing data bidirectionally...');
         await syncBidirectional(user.uid, {
             watchLater: localWatchLater,
             watched: localWatched,
           });
-          console.log('Sync completed successfully');
       } catch (error) {
         console.error('Error syncing data on login:', error);
       }
@@ -87,16 +91,15 @@ export const AuthProvider = ({ children }) => {
     
     // Check for redirect result on component mount
     getRedirectResult(auth)
-      .then((result) => {
+      .then(async (result) => {
         redirectChecked = true;
         setAuthLoading(false);
         
         if (result && result.user) {
           // User signed in successfully after redirect
-          console.log('Google sign-in successful:', result.user);
+          console.log('Google sign-in successful');
           setCurrentUser(result.user);
-          // Sync local data to cloud
-          syncDataOnLogin(result.user);
+          await syncDataOnLogin(result.user);
           // Redirect to home page
           window.location.href = '/';
         }
@@ -122,12 +125,14 @@ export const AuthProvider = ({ children }) => {
       });
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log('Auth state changed:', user ? 'User logged in' : 'User logged out');
       setCurrentUser(user);
+      setStorageUser(user?.uid || null);
       
-      // Sync data when user state changes (login)
-      if (user && !redirectChecked) {
+      if (user && syncedUserRef.current !== user.uid) {
+        syncedUserRef.current = user.uid;
         syncDataOnLogin(user);
+      } else if (!user) {
+        syncedUserRef.current = null;
       }
       
       setLoading(false);
@@ -140,6 +145,7 @@ export const AuthProvider = ({ children }) => {
     currentUser,
     signup,
     login,
+    resetPassword,
     logout,
     signInWithGoogle,
     loading,
@@ -152,5 +158,3 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-
-

@@ -1,21 +1,18 @@
 import axios from 'axios';
 
 // TMDb API configuration
-const API_KEY = process.env.REACT_APP_TMDB_KEY;
-const BASE_URL = process.env.REACT_APP_TMDB_BASE_URL;
-export const IMAGE_BASE_URL = process.env.REACT_APP_TMDB_IMAGE_BASE_URL;
+const BASE_URL = process.env.REACT_APP_TMDB_PROXY_URL || 'https://watchly-proxy.YOUR-SUBDOMAIN.workers.dev';
+export const IMAGE_BASE_URL = process.env.REACT_APP_TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
 
 // Create axios instance with default config
 const api = axios.create({
   baseURL: BASE_URL,
-  params: {
-    api_key: API_KEY,
-  },
+  timeout: 15000,
 });
 
 // Helper function to get image URL
 export const getImageUrl = (path, size = 'w500') => {
-  if (!path) return '/placeholder-image.png';
+  if (!path) return '/placeholder-image.svg';
   return `${IMAGE_BASE_URL}/${size}${path}`;
 };
 
@@ -196,10 +193,11 @@ export const getUpcomingAnime = async (page = 1) => {
  * @param {string} query - Search query
  * @param {string} type - 'movie', 'tv', or 'multi'
  */
-export const searchMedia = async (query, type = 'multi', page = 1) => {
+export const searchMedia = async (query, type = 'multi', page = 1, signal) => {
   try {
     const response = await api.get(`/search/${type}`, {
       params: { query, page },
+      signal,
     });
     return response.data;
   } catch (error) {

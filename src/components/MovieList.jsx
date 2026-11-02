@@ -18,13 +18,15 @@ const MovieList = ({ title, items, loading = false, emptyMessage = 'No items to 
           {viewAllLink && (
             <Link 
               to={viewAllLink}
+              aria-label={`View all ${title}`}
+              title={`View all ${title}`}
               className="flex items-center gap-2 text-red-600 hover:text-red-500 transition-colors font-semibold"
             >
               <FiArrowRight className="text-2xl" />
             </Link>
           )}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+        <div className="media-grid">
           {[...Array(limit || 12)].map((_, index) => (
             <div
               key={index}
@@ -77,7 +79,7 @@ const MovieList = ({ title, items, loading = false, emptyMessage = 'No items to 
           </Link>
         )}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+      <div className="media-grid">
         {displayItems.map((item) => (
           <MovieCard key={`${item.id}-${item.media_type}`} item={item} />
         ))}

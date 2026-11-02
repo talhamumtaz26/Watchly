@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPersonDetails, getPersonMovieCredits, getPersonTVCredits, getImageUrl } from '../utils/api';
 import { FiArrowLeft, FiCalendar, FiMapPin } from 'react-icons/fi';
@@ -14,11 +14,7 @@ const Actor = () => {
   const [showAllMovies, setShowAllMovies] = useState(false);
   const [showAllTV, setShowAllTV] = useState(false);
 
-  useEffect(() => {
-    loadActorData();
-  }, [id]);
-
-  const loadActorData = async () => {
+  const loadActorData = useCallback(async () => {
     setLoading(true);
     try {
       const [personData, moviesData, tvData] = await Promise.all([
@@ -44,7 +40,11 @@ const Actor = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadActorData();
+  }, [id, loadActorData]);
 
   const handleItemClick = (item, mediaType) => {
     navigate(`/details/${mediaType}/${item.id}`);
@@ -97,7 +97,8 @@ const Actor = () => {
                 alt={person.name}
                 className="w-48 h-48 md:w-64 md:h-64 object-cover rounded-xl shadow-lg mx-auto"
                 onError={(e) => {
-                  e.target.src = 'https://via.placeholder.com/500x500/1F2937/9CA3AF?text=No+Image';
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = '/placeholder-image.svg';
                 }}
               />
             </div>
@@ -176,7 +177,8 @@ const Actor = () => {
                       alt={movie.title}
                       className="w-full rounded-lg shadow-lg group-hover:scale-105 transition-transform"
                       onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/500x750/1F2937/9CA3AF?text=No+Image';
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = '/placeholder-image.svg';
                       }}
                     />
                     {movie.vote_average > 0 && (
@@ -236,7 +238,8 @@ const Actor = () => {
                       alt={show.name}
                       className="w-full rounded-lg shadow-lg group-hover:scale-105 transition-transform"
                       onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/500x750/1F2937/9CA3AF?text=No+Image';
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = '/placeholder-image.svg';
                       }}
                     />
                     {show.vote_average > 0 && (

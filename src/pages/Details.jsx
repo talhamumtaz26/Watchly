@@ -8,32 +8,27 @@ import {
   getImageUrl,
   getMovieVideos,
   getTVVideos,
-  getMovieReviews,
-  getTVReviews,
   getSimilarMovies,
   getSimilarTVShows,
   getTVSeasonDetails,
 } from '../utils/api';
 import {
-  addToWatchLater,
-  addToWatched,
-  removeFromWatchLater,
-  removeFromWatched,
-  isInWatchLater,
-  isWatched,
-  getTVShowProgress,
   markEpisodeWatched,
   unmarkEpisodeWatched,
-  isEpisodeWatched,
   getSeasonProgress,
+  getTVShowProgress,
 } from '../utils/storage';
 import {
   addToWatchLaterCloud,
   addToWatchedCloud,
   removeFromWatchLaterCloud,
   removeFromWatchedCloud,
-  isInWatchLaterCloud,
-  isWatchedCloud,
+  updateWatchedRatingCloud,
+  subscribeToWatchLaterStatusCloud,
+  subscribeToWatchedStatusCloud,
+  getTVShowProgressCloud,
+  markEpisodeWatchedCloud,
+  unmarkEpisodeWatchedCloud,
 } from '../utils/cloudStorage';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
@@ -44,15 +39,15 @@ const Details = () => {
   const { mediaType, id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const [details, setDetails] = useState(null);
   const [credits, setCredits] = useState(null);
   const [videos, setVideos] = useState([]);
-  const [reviews, setReviews] = useState([]);
   const [similar, setSimilar] = useState([]);
   const [seasons, setSeasons] = useState([]);
   const [selectedSeason, setSelectedSeason] = useState(null);
   const [seasonDetails, setSeasonDetails] = useState(null);
+  const [episodeProgress, setEpisodeProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [inWatchLater, setInWatchLater] = useState(false);
   const [watched, setWatched] = useState(false);
@@ -60,8 +55,75 @@ const Details = () => {
 
   useEffect(() => {
     loadDetails();
-    checkStatus();
+    // Reload details when the media route changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, mediaType]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setInWatchLater(false);
+      setWatched(false);
+      return undefined;
+    }
+
+    const handleSubscriptionError = () => {
+      toast.error('Unable to sync this item in real time');
+    };
+    const unsubscribeWatchLater = subscribeToWatchLaterStatusCloud(
+      currentUser.uid,
+      parseInt(id),
+      mediaType,
+      setInWatchLater,
+      handleSubscriptionError
+    );
+    const unsubscribeWatched = subscribeToWatchedStatusCloud(
+      currentUser.uid,
+      parseInt(id),
+      mediaType,
+      setWatched,
+      handleSubscriptionError
+    );
+
+    return () => {
+      unsubscribeWatchLater();
+      unsubscribeWatched();
+    };
+  }, [currentUser, id, mediaType, toast]);
+
+  useEffect(() => {
+    let active = true;
+    if (mediaType !== 'tv') {
+      setEpisodeProgress(null);
+      return undefined;
+    }
+    const loadProgress = async () => {
+      const progress = currentUser
+        ? await getTVShowProgressCloud(currentUser.uid, parseInt(id))
+        : getTVShowProgress(parseInt(id));
+      if (active) setEpisodeProgress(progress);
+    };
+    loadProgress().catch(() => {
+      if (active) toast.error('Unable to load episode progress');
+    });
+    return () => { active = false; };
+  }, [currentUser, id, mediaType, toast]);
+
+  const isEpisodeProgressWatched = (seasonNumber, episodeNumber) => {
+    const progress = episodeProgress || { episodes: {} };
+    return Boolean(progress.episodes?.[`S${seasonNumber}E${episodeNumber}`]?.watched);
+  };
+
+  const getDisplayedSeasonProgress = (seasonNumber, totalEpisodes) => {
+    if (!episodeProgress) return getSeasonProgress(parseInt(id), seasonNumber, totalEpisodes);
+    const watched = Array.from({ length: totalEpisodes }, (_, index) =>
+      isEpisodeProgressWatched(seasonNumber, index + 1)
+    ).filter(Boolean).length;
+    return {
+      watched,
+      total: totalEpisodes,
+      percentage: totalEpisodes > 0 ? Math.round((watched / totalEpisodes) * 100) : 0,
+    };
+  };
 
   const loadDetails = async () => {
     setLoading(true);
@@ -72,24 +134,20 @@ const Details = () => {
         mediaType === 'movie' ? getMovieCredits(id) : getTVCredits(id);
       const videosPromise =
         mediaType === 'movie' ? getMovieVideos(id) : getTVVideos(id);
-      const reviewsPromise =
-        mediaType === 'movie' ? getMovieReviews(id) : getTVReviews(id);
       const similarPromise =
         mediaType === 'movie' ? getSimilarMovies(id) : getSimilarTVShows(id);
 
-      const [detailsData, creditsData, videosData, reviewsData, similarData] =
+      const [detailsData, creditsData, videosData, similarData] =
         await Promise.all([
           detailsPromise,
           creditsPromise,
           videosPromise,
-          reviewsPromise,
           similarPromise,
         ]);
 
       setDetails(detailsData);
       setCredits(creditsData);
       setVideos(videosData.results?.filter((v) => v.site === 'YouTube') || []);
-      setReviews(reviewsData.results || []);
       setSimilar(similarData.results?.slice(0, 6) || []);
 
       if (mediaType === 'tv' && detailsData.seasons) {
@@ -113,24 +171,12 @@ const Details = () => {
     }
   };
 
-  const checkStatus = async () => {
-    console.log('Checking status - User:', user ? user.uid : 'Not logged in');
-    
-    if (user) {
-      console.log('Checking cloud status');
-      const inWL = await isInWatchLaterCloud(user.uid, parseInt(id), mediaType);
-      const isW = await isWatchedCloud(user.uid, parseInt(id), mediaType);
-      console.log('Cloud status - In Watch Later:', inWL, 'Watched:', isW);
-      setInWatchLater(inWL);
-      setWatched(isW);
-    } else {
-      console.log('Checking local storage status');
-      setInWatchLater(isInWatchLater(parseInt(id), mediaType));
-      setWatched(isWatched(parseInt(id), mediaType));
-    }
-  };
-
   const handleAddToWatchLater = async () => {
+    if (!currentUser) {
+      toast.info('Please log in to use Watch Later');
+      return;
+    }
+
     if (!details) return;
 
     // Calculate total runtime for TV shows
@@ -144,60 +190,64 @@ const Details = () => {
     const item = {
       id: details.id,
       title: details.title || details.name,
-      poster_path: details.poster_path,
-      release_date: details.release_date || details.first_air_date,
-      vote_average: details.vote_average,
       media_type: mediaType,
+      ...(mediaType === 'tv' && details.genres?.some((genre) => genre.id === 16)
+        ? { isAnime: true }
+        : {}),
       runtime: totalRuntime,
-      // Store additional TV show info for future calculations
-      episode_run_time: details.episode_run_time,
-      number_of_episodes: details.number_of_episodes,
-      number_of_seasons: details.number_of_seasons,
+      ...(details.poster_path ? { poster_path: details.poster_path } : {}),
+      ...((details.release_date || details.first_air_date)
+        ? { release_date: details.release_date || details.first_air_date }
+        : {}),
+      ...(details.vote_average !== undefined ? { vote_average: details.vote_average } : {}),
+      ...(details.episode_run_time ? { episode_run_time: details.episode_run_time } : {}),
+      ...(details.number_of_episodes !== undefined ? { number_of_episodes: details.number_of_episodes } : {}),
+      ...(details.number_of_seasons !== undefined ? { number_of_seasons: details.number_of_seasons } : {}),
     };
 
-    console.log('Adding to Watch Later - User:', user ? user.uid : 'Not logged in');
-    
-    if (user) {
-      // Use cloud storage
-      console.log('Using cloud storage for Watch Later');
-      const success = await addToWatchLaterCloud(user.uid, item);
-      console.log('Cloud add result:', success);
+    if (currentUser) {
+      const success = await addToWatchLaterCloud(currentUser.uid, item);
       if (success) {
         setInWatchLater(true);
-      }
-    } else {
-      // Use local storage
-      console.log('Using local storage for Watch Later');
-      if (addToWatchLater(item)) {
-        setInWatchLater(true);
+        toast.success('Added to Watch Later');
+      } else {
+        toast.error('Could not add this item to Watch Later');
       }
     }
   };
 
   const handleRemoveFromWatchLater = async () => {
-    console.log('Removing from Watch Later - User:', user ? user.uid : 'Not logged in');
-    
-    if (user) {
-      console.log('Using cloud storage to remove');
-      await removeFromWatchLaterCloud(user.uid, parseInt(id), mediaType);
-    } else {
-      console.log('Using local storage to remove');
-      removeFromWatchLater(parseInt(id), mediaType);
+    if (!currentUser) {
+      toast.info('Please log in to manage Watch Later');
+      return;
+    }
+
+    const success = await removeFromWatchLaterCloud(currentUser.uid, parseInt(id), mediaType);
+    if (!success) {
+      toast.error('Could not remove this item from Watch Later');
+      return;
     }
     setInWatchLater(false);
+    toast.success('Removed from Watch Later');
   };
 
   const handleMarkAsWatched = async () => {
+    if (!currentUser) {
+      toast.info('Please log in to mark items as Watched');
+      return;
+    }
+
     if (!details) return;
 
     // If already watched, remove from watched
     if (watched) {
-      if (user) {
-        await removeFromWatchedCloud(user.uid, parseInt(id), mediaType);
-      } else {
-        removeFromWatched(parseInt(id), mediaType);
+      const success = await removeFromWatchedCloud(currentUser.uid, parseInt(id), mediaType);
+      if (!success) {
+        toast.error('Could not remove this item from Watched');
+        return;
       }
       setWatched(false);
+      toast.success('Removed from Watched');
       return;
     }
 
@@ -205,89 +255,83 @@ const Details = () => {
     let totalRuntime = 0;
     if (mediaType === 'tv') {
       const episodeRuntime = details.episode_run_time?.[0] || 45; // Default to 45 mins if not available
-      const numberOfSeasons = details.number_of_seasons || 0;
       const numberOfEpisodes = details.number_of_episodes || 0;
       
       totalRuntime = episodeRuntime * numberOfEpisodes;
-      console.log('TV Show Runtime Calculation:', {
-        episodeRuntime,
-        numberOfEpisodes,
-        totalRuntime,
-        hours: Math.floor(totalRuntime / 60),
-        minutes: totalRuntime % 60
-      });
     } else {
       totalRuntime = details.runtime || 0;
-      console.log('Movie Runtime:', totalRuntime);
     }
 
     const item = {
       id: details.id,
       title: details.title || details.name,
-      poster_path: details.poster_path,
-      release_date: details.release_date || details.first_air_date,
-      vote_average: details.vote_average,
       media_type: mediaType,
+      ...(mediaType === 'tv' && details.genres?.some((genre) => genre.id === 16)
+        ? { isAnime: true }
+        : {}),
       runtime: totalRuntime,
+      ...(details.poster_path ? { poster_path: details.poster_path } : {}),
+      ...((details.release_date || details.first_air_date)
+        ? { release_date: details.release_date || details.first_air_date }
+        : {}),
+      ...(details.vote_average !== undefined ? { vote_average: details.vote_average } : {}),
     };
 
-    console.log('Marking as watched:', item);
-
-    console.log('Adding to Watched - User:', user ? user.uid : 'Not logged in');
-    
-    if (user) {
-      // Use cloud storage
-      console.log('Using cloud storage for Watched');
-      const success = await addToWatchedCloud(user.uid, item);
-      console.log('Cloud add result:', success);
-      if (success) {
-        setWatched(true);
-        setInWatchLater(false);
-      }
+    const success = await addToWatchedCloud(currentUser.uid, item);
+    if (success) {
+      setWatched(true);
+      setInWatchLater(false);
+      toast.success('Marked as Watched');
     } else {
-      // Use local storage
-      console.log('Using local storage for Watched');
-      if (addToWatched(item)) {
-        setWatched(true);
-        setInWatchLater(false);
-        
-        // For TV shows, mark all episodes as watched
-        if (mediaType === 'tv' && details.seasons) {
-          details.seasons.forEach(season => {
-            if (season.season_number > 0) { // Skip specials (season 0)
-              for (let ep = 1; ep <= season.episode_count; ep++) {
-                markEpisodeWatched(
-                  parseInt(id),
-                  season.season_number,
-                  ep,
-                  details.episode_run_time?.[0] || 45
-                );
-              }
-            }
-          });
-        }
-      }
+      toast.error('Could not mark this item as Watched');
     }
   };
 
-  const handleEpisodeToggle = (seasonNumber, episodeNumber, runtime) => {
-    const isWatched = isEpisodeWatched(parseInt(id), seasonNumber, episodeNumber);
-    
-    if (isWatched) {
+  const handleRateWatched = async () => {
+    if (!currentUser || !watched) return;
+    const rating = window.prompt('Rate this item from 1 to 10:');
+    if (rating === null) return;
+    const success = await updateWatchedRatingCloud(currentUser.uid, parseInt(id), mediaType, rating);
+    if (success) {
+      toast.success('Your rating was saved');
+    } else {
+      toast.error('Enter a rating between 1 and 10');
+    }
+  };
+
+  const handleEpisodeToggle = async (seasonNumber, episodeNumber, runtime) => {
+    const watchedNow = isEpisodeProgressWatched(seasonNumber, episodeNumber);
+    if (currentUser) {
+      if (watchedNow) {
+        await unmarkEpisodeWatchedCloud(currentUser.uid, parseInt(id), seasonNumber, episodeNumber);
+      } else {
+        await markEpisodeWatchedCloud(currentUser.uid, parseInt(id), seasonNumber, episodeNumber, runtime);
+      }
+      setEpisodeProgress(await getTVShowProgressCloud(currentUser.uid, parseInt(id)));
+    } else if (watchedNow) {
       unmarkEpisodeWatched(parseInt(id), seasonNumber, episodeNumber);
+      setEpisodeProgress(getTVShowProgress(parseInt(id)));
     } else {
       markEpisodeWatched(parseInt(id), seasonNumber, episodeNumber, runtime);
+      setEpisodeProgress(getTVShowProgress(parseInt(id)));
     }
-    
-    // Reload the season details to reflect changes
     loadSeasonDetails(seasonNumber);
   };
 
-  const handleMarkSeasonWatched = (seasonNumber, episodeCount) => {
+  const handleMarkSeasonWatched = async (seasonNumber, episodeCount) => {
     const episodeRuntime = details.episode_run_time?.[0] || 45;
     for (let ep = 1; ep <= episodeCount; ep++) {
-      markEpisodeWatched(parseInt(id), seasonNumber, ep, episodeRuntime);
+      if (!isEpisodeProgressWatched(seasonNumber, ep)) {
+        if (currentUser) {
+          await markEpisodeWatchedCloud(currentUser.uid, parseInt(id), seasonNumber, ep, episodeRuntime);
+        } else {
+          markEpisodeWatched(parseInt(id), seasonNumber, ep, episodeRuntime);
+        }
+      }
     }
+    setEpisodeProgress(currentUser
+      ? await getTVShowProgressCloud(currentUser.uid, parseInt(id))
+      : getTVShowProgress(parseInt(id)));
     // Reload the season details to reflect changes
     loadSeasonDetails(seasonNumber);
   };
@@ -361,7 +405,8 @@ const Details = () => {
                   alt={title}
                   className="w-24 md:w-56 rounded-lg md:rounded-2xl shadow-2xl border-2 md:border-4 border-white/20"
                   onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/500x750/1E293B/94A3B8?text=No+Image';
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = '/placeholder-image.svg';
                   }}
                 />
               </div>
@@ -371,7 +416,7 @@ const Details = () => {
                 <h1 className="text-lg md:text-5xl font-display font-bold text-white mb-1 md:mb-3 text-shadow-lg animate-slide-up leading-tight">
                   {title}
                 </h1>
-                <div className="flex flex-wrap items-center gap-1.5 md:gap-4 mb-2 md:mb-4 text-text-muted text-[11px] md:text-base animate-slide-up">
+                <div className="flex flex-wrap items-center gap-1.5 md:gap-4 mb-2 md:mb-4 text-text-muted text-xs md:text-base animate-slide-up">
                   {releaseDate && (
                     <span className="text-white font-semibold">
                       {new Date(releaseDate).toLocaleDateString('en-US', { 
@@ -408,7 +453,7 @@ const Details = () => {
                     <a
                       key={genre.id}
                       href={`/genre/${genre.id}/${encodeURIComponent(genre.name)}`}
-                      className="bg-white/10 backdrop-blur-custom text-white px-2 py-0.5 md:px-4 md:py-2 rounded md:rounded-xl text-[9px] md:text-sm font-semibold border border-white/20 hover:bg-red-600 hover:border-red-600 transition-all cursor-pointer"
+                      className="bg-white/10 backdrop-blur-custom text-white px-2 py-0.5 md:px-4 md:py-2 rounded md:rounded-xl text-xs md:text-sm font-semibold border border-white/20 hover:bg-red-600 hover:border-red-600 transition-all cursor-pointer"
                     >
                       {genre.name}
                     </a>
@@ -456,6 +501,14 @@ const Details = () => {
               <span>✓ Watched</span>
             </button>
           )}
+          {watched && (
+            <button
+              onClick={handleRateWatched}
+              className="flex-1 md:flex-none bg-yellow-500 hover:bg-yellow-400 text-black px-6 py-3 md:px-8 md:py-4 rounded-lg md:rounded-xl text-sm md:text-base font-bold transition-all"
+            >
+              Rate
+            </button>
+          )}
         </div>
 
         {/* Overview */}
@@ -497,7 +550,7 @@ const Details = () => {
             </h2>
             <div className="space-y-4">
               {seasons.map((season) => {
-                const progress = getSeasonProgress(parseInt(id), season.season_number, season.episode_count);
+                const progress = getDisplayedSeasonProgress(season.season_number, season.episode_count);
                 return (
                   <div key={season.id} className="bg-background-darker border border-white/10 rounded-xl p-4 hover:shadow-card-hover transition-all">
                     <div className="flex items-center justify-between mb-2">
@@ -551,7 +604,7 @@ const Details = () => {
                   </div>
                   <div className="space-y-2">
                     {seasonDetails.episodes?.map((episode) => {
-                      const episodeWatched = isEpisodeWatched(parseInt(id), selectedSeason, episode.episode_number);
+                      const episodeWatched = isEpisodeProgressWatched(selectedSeason, episode.episode_number);
                       return (
                         <div
                           key={episode.id}
@@ -620,13 +673,14 @@ const Details = () => {
                     alt={actor.name}
                     className="w-full aspect-square object-cover rounded-lg md:rounded-2xl mb-2 md:mb-3 group-hover:scale-105 transition-transform shadow-card"
                     onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/185x278/1E293B/94A3B8?text=No+Image';
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = '/placeholder-image.svg';
                     }}
                   />
                   <p className="font-bold text-xs md:text-sm text-white line-clamp-1 group-hover:text-red-600 transition-colors">
                     {actor.name}
                   </p>
-                  <p className="text-[10px] md:text-xs text-text-muted mt-0.5 md:mt-1 line-clamp-1">
+                  <p className="text-xs md:text-xs text-text-muted mt-0.5 md:mt-1 line-clamp-1">
                     {actor.character}
                   </p>
                 </a>

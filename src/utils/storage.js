@@ -1,3 +1,5 @@
+import { formatWatchTime as formatWatchTimeValue, getWatchTimeStats as getWatchTimeStatsValue } from './watchStats';
+
 // LocalStorage keys
 const WATCH_LATER_KEY = 'watchly_watch_later';
 const WATCHED_KEY = 'watchly_watched';
@@ -5,6 +7,15 @@ const TOTAL_TIME_KEY = 'watchly_total_time';
 const THEME_KEY = 'watchly_theme';
 const EPISODE_TRACKING_KEY = 'watchly_episode_tracking';
 const SETTINGS_KEY = 'watchly_settings';
+const WATCH_LATER_DELETED_KEY = 'watchly_watch_later_deleted';
+const WATCHED_DELETED_KEY = 'watchly_watched_deleted';
+let activeUserId = 'guest';
+
+export const setStorageUser = (userId) => {
+  activeUserId = userId || 'guest';
+};
+
+const getStorageKey = (key) => `${key}_${activeUserId}`;
 
 /**
  * Get data from localStorage
@@ -13,10 +24,10 @@ const SETTINGS_KEY = 'watchly_settings';
  */
 const getFromStorage = (key, defaultValue = []) => {
   try {
-    const item = localStorage.getItem(key);
+    const item = localStorage.getItem(getStorageKey(key));
     return item ? JSON.parse(item) : defaultValue;
   } catch (error) {
-    console.error(`Error reading from localStorage (${key}):`, error);
+    console.error(`Error reading from localStorage (${getStorageKey(key)}):`, error);
     return defaultValue;
   }
 };
@@ -28,9 +39,9 @@ const getFromStorage = (key, defaultValue = []) => {
  */
 const saveToStorage = (key, value) => {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    localStorage.setItem(getStorageKey(key), JSON.stringify(value));
   } catch (error) {
-    console.error(`Error saving to localStorage (${key}):`, error);
+    console.error(`Error saving to localStorage (${getStorageKey(key)}):`, error);
   }
 };
 
@@ -59,9 +70,13 @@ export const addToWatchLater = (item) => {
     const newItem = {
       ...item,
       addedDate: new Date().toISOString(),
+      updatedAt: item.updatedAt || new Date().toISOString(),
     };
     watchLater.push(newItem);
     saveToStorage(WATCH_LATER_KEY, watchLater);
+    const deleted = getFromStorage(WATCH_LATER_DELETED_KEY, {});
+    delete deleted[`${item.media_type}_${item.id}`];
+    saveToStorage(WATCH_LATER_DELETED_KEY, deleted);
     return true;
   }
   return false;
@@ -72,12 +87,17 @@ export const addToWatchLater = (item) => {
  * @param {number} id - Item ID
  * @param {string} mediaType - 'movie' or 'tv'
  */
-export const removeFromWatchLater = (id, mediaType) => {
+export const removeFromWatchLater = (id, mediaType, recordDeletion = true) => {
   const watchLater = getWatchLater();
   const filtered = watchLater.filter(
     (item) => !(item.id === id && item.media_type === mediaType)
   );
   saveToStorage(WATCH_LATER_KEY, filtered);
+  if (recordDeletion) {
+    const deleted = getFromStorage(WATCH_LATER_DELETED_KEY, {});
+    deleted[`${mediaType}_${id}`] = new Date().toISOString();
+    saveToStorage(WATCH_LATER_DELETED_KEY, deleted);
+  }
 };
 
 /**
@@ -117,9 +137,13 @@ export const addToWatched = (item) => {
     const newItem = {
       ...item,
       watchedDate: new Date().toISOString(),
+      updatedAt: item.updatedAt || new Date().toISOString(),
     };
     watched.push(newItem);
     saveToStorage(WATCHED_KEY, watched);
+    const deleted = getFromStorage(WATCHED_DELETED_KEY, {});
+    delete deleted[`${item.media_type}_${item.id}`];
+    saveToStorage(WATCHED_DELETED_KEY, deleted);
     
     // Update total watch time
     if (item.runtime) {
@@ -139,7 +163,7 @@ export const addToWatched = (item) => {
  * @param {number} id - Item ID
  * @param {string} mediaType - 'movie' or 'tv'
  */
-export const removeFromWatched = (id, mediaType) => {
+export const removeFromWatched = (id, mediaType, recordDeletion = true) => {
   const watched = getWatched();
   const itemToRemove = watched.find(
     (item) => item.id === id && item.media_type === mediaType
@@ -178,6 +202,11 @@ export const removeFromWatched = (id, mediaType) => {
     (item) => !(item.id === id && item.media_type === mediaType)
   );
   saveToStorage(WATCHED_KEY, filtered);
+  if (recordDeletion) {
+    const deleted = getFromStorage(WATCHED_DELETED_KEY, {});
+    deleted[`${mediaType}_${id}`] = new Date().toISOString();
+    saveToStorage(WATCHED_DELETED_KEY, deleted);
+  }
 };
 
 /**
@@ -225,18 +254,7 @@ export const updateTotalWatchTime = (minutes) => {
  * @returns {string} - Formatted string (e.g., "2h 30m" or "143 hours")
  */
 export const formatWatchTime = (minutes) => {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  
-  if (hours === 0) {
-    return `${mins}m`;
-  }
-  
-  if (mins === 0) {
-    return `${hours}h`;
-  }
-  
-  return `${hours}h ${mins}m`;
+  return formatWatchTimeValue(minutes);
 };
 
 /**
@@ -244,43 +262,13 @@ export const formatWatchTime = (minutes) => {
  * @returns {Object} - Stats object with hours, days, etc.
  */
 export const getWatchTimeStats = () => {
-  // Get watched items to verify stats
   const watched = getWatched();
-  
-  // If no watched items, return zero stats and reset total time
-  if (watched.length === 0) {
-    saveToStorage(TOTAL_TIME_KEY, 0);
-    return {
-      totalMinutes: 0,
-      hours: 0,
-      days: 0,
-      remainingHours: 0,
-      formatted: '0m',
-    };
-  }
-  
-  // Calculate actual total time from watched items to ensure accuracy
-  const actualTotalMinutes = watched.reduce((total, item) => {
-    return total + (item.runtime || 0);
-  }, 0);
-  
-  // Update stored total time if it's different
+  const stats = getWatchTimeStatsValue(watched);
   const storedTotalMinutes = getTotalWatchTime();
-  if (storedTotalMinutes !== actualTotalMinutes) {
-    saveToStorage(TOTAL_TIME_KEY, actualTotalMinutes);
+  if (storedTotalMinutes !== stats.totalMinutes) {
+    saveToStorage(TOTAL_TIME_KEY, stats.totalMinutes);
   }
-  
-  const hours = Math.floor(actualTotalMinutes / 60);
-  const days = Math.floor(hours / 24);
-  const remainingHours = hours % 24;
-  
-  return {
-    totalMinutes: actualTotalMinutes,
-    hours,
-    days,
-    remainingHours,
-    formatted: formatWatchTime(actualTotalMinutes),
-  };
+  return stats;
 };
 
 // ============ Theme Functions ============
@@ -358,9 +346,20 @@ export const updateSetting = (key, value) => {
  * Clear all app data from localStorage
  */
 export const clearAllData = () => {
-  localStorage.removeItem(WATCH_LATER_KEY);
-  localStorage.removeItem(WATCHED_KEY);
-  localStorage.removeItem(TOTAL_TIME_KEY);
+  const deletedAt = new Date().toISOString();
+  const watchLaterDeleted = getFromStorage(WATCH_LATER_DELETED_KEY, {});
+  getWatchLater().forEach((item) => {
+    watchLaterDeleted[`${item.media_type}_${item.id}`] = deletedAt;
+  });
+  const watchedDeleted = getFromStorage(WATCHED_DELETED_KEY, {});
+  getWatched().forEach((item) => {
+    watchedDeleted[`${item.media_type}_${item.id}`] = deletedAt;
+  });
+  saveToStorage(WATCH_LATER_DELETED_KEY, watchLaterDeleted);
+  saveToStorage(WATCHED_DELETED_KEY, watchedDeleted);
+  [WATCH_LATER_KEY, WATCHED_KEY, TOTAL_TIME_KEY, EPISODE_TRACKING_KEY].forEach((key) => {
+    localStorage.removeItem(getStorageKey(key));
+  });
   // Don't clear theme preference
 };
 
@@ -372,8 +371,47 @@ export const exportData = () => {
     watchLater: getWatchLater(),
     watched: getWatched(),
     totalTime: getTotalWatchTime(),
+    episodeTracking: getFromStorage(EPISODE_TRACKING_KEY, {}),
+    deleted: {
+      watchLater: getFromStorage(WATCH_LATER_DELETED_KEY, {}),
+      watched: getFromStorage(WATCHED_DELETED_KEY, {}),
+    },
     exportDate: new Date().toISOString(),
   };
+};
+
+const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+const validateItems = (value, name) => {
+  if (!Array.isArray(value) || value.some((item) => !isPlainObject(item)
+    || !Number.isFinite(Number(item.id)) || !['movie', 'tv'].includes(item.media_type))) {
+    throw new Error(`${name} must be an array of valid movie or TV items`);
+  }
+};
+
+const validateDeleted = (value, name) => {
+  if (value === undefined) return;
+  if (!isPlainObject(value) || Object.entries(value).some(([key, timestamp]) =>
+    !/^(movie|tv)_\d+$/.test(key) || typeof timestamp !== 'string' || Number.isNaN(Date.parse(timestamp)))) {
+    throw new Error(`${name} contains invalid deletion markers`);
+  }
+};
+
+export const validateImportedData = (data) => {
+  if (!isPlainObject(data)) throw new Error('Import file must contain a JSON object');
+  validateItems(data.watchLater, 'watchLater');
+  validateItems(data.watched, 'watched');
+  if (!Number.isFinite(Number(data.totalTime)) || Number(data.totalTime) < 0) {
+    throw new Error('totalTime must be a non-negative number');
+  }
+  if (!isPlainObject(data.episodeTracking)
+    || Object.values(data.episodeTracking).some((progress) =>
+      !isPlainObject(progress) || !isPlainObject(progress.episodes) || !isPlainObject(progress.seasons))) {
+    throw new Error('episodeTracking has an invalid format');
+  }
+  validateDeleted(data.deleted?.watchLater, 'watchLater deletions');
+  validateDeleted(data.deleted?.watched, 'watched deletions');
+  return data;
 };
 
 /**
@@ -381,10 +419,27 @@ export const exportData = () => {
  * @param {Object} data - Data object to import
  */
 export const importData = (data) => {
-  if (data.watchLater) saveToStorage(WATCH_LATER_KEY, data.watchLater);
-  if (data.watched) saveToStorage(WATCHED_KEY, data.watched);
-  if (data.totalTime !== undefined) saveToStorage(TOTAL_TIME_KEY, data.totalTime);
-  if (data.episodeTracking) saveToStorage(EPISODE_TRACKING_KEY, data.episodeTracking);
+  const validated = validateImportedData(data);
+  saveToStorage(WATCH_LATER_KEY, validated.watchLater);
+  saveToStorage(WATCHED_KEY, validated.watched);
+  saveToStorage(TOTAL_TIME_KEY, Number(validated.totalTime));
+  saveToStorage(EPISODE_TRACKING_KEY, validated.episodeTracking);
+  saveToStorage(WATCH_LATER_DELETED_KEY, validated.deleted?.watchLater || {});
+  saveToStorage(WATCHED_DELETED_KEY, validated.deleted?.watched || {});
+};
+
+export const getDeletedItems = () => ({
+  watchLater: getFromStorage(WATCH_LATER_DELETED_KEY, {}),
+  watched: getFromStorage(WATCHED_DELETED_KEY, {}),
+});
+
+export const recordDeletedItem = (collectionName, key, deletedAt) => {
+  const storageKey = collectionName === 'watchLater'
+    ? WATCH_LATER_DELETED_KEY
+    : WATCHED_DELETED_KEY;
+  const deleted = getFromStorage(storageKey, {});
+  deleted[key] = deletedAt;
+  saveToStorage(storageKey, deleted);
 };
 
 // ============ Episode Tracking Functions ============

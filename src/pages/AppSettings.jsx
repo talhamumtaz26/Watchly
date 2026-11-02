@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clearAllData, exportData, importData, getSetting, updateSetting, getWatchLater, getWatched } from '../utils/storage';
-import { syncBidirectional } from '../utils/cloudStorage';
+import { syncBidirectional, clearCloudData } from '../utils/cloudStorage';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
-import { FiArrowLeft, FiDatabase, FiDownload, FiUpload, FiTrash2, FiInfo, FiEye, FiEyeOff, FiCloud, FiCheck } from 'react-icons/fi';
+import { FiArrowLeft, FiCloud, FiCheck } from 'react-icons/fi';
 
 const AppSettings = () => {
   const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
   const [hideWatchedFromHome, setHideWatchedFromHome] = useState(getSetting('hideWatchedFromHome', false));
   const [syncing, setSyncing] = useState(false);
   const [synced, setSynced] = useState(false);
+  const [syncSummary, setSyncSummary] = useState(null);
   const navigate = useNavigate();
   const toast = useToast();
   const { currentUser } = useAuth();
@@ -41,10 +43,20 @@ const AppSettings = () => {
     };
   }, [synced]);
 
-  const handleClearData = () => {
-    if (showConfirm) {
+  const handleClearData = async () => {
+    if (showConfirm && confirmText === 'CLEAR ALL') {
+      if (currentUser) {
+        try {
+          await clearCloudData(currentUser.uid);
+        } catch (error) {
+          console.error('Cloud clear error:', error);
+          toast.error('Could not clear cloud data');
+          return;
+        }
+      }
       clearAllData();
       setShowConfirm(false);
+      setConfirmText('');
       setTimeout(() => window.location.reload(), 1000);
     } else {
       setShowConfirm(true);
@@ -74,9 +86,11 @@ const AppSettings = () => {
         try {
           const data = JSON.parse(e.target.result);
           importData(data);
+          toast.success('Data imported successfully');
           setTimeout(() => window.location.reload(), 1000);
         } catch (error) {
           console.error('Import error:', error);
+          toast.error(error.message || 'Invalid backup file');
         }
       };
       reader.readAsText(file);
@@ -97,13 +111,11 @@ const AppSettings = () => {
 
     setSyncing(true);
     setSynced(false);
+    setSyncSummary(null);
     try {
       // Get local data
       const localWatchLater = getWatchLater();
-      const localWatched = getWatched();      console.log('Syncing to cloud...', {
-        watchLater: localWatchLater.length,
-        watched: localWatched.length
-      });
+      const localWatched = getWatched();
 
       // Sync bidirectionally
       const result = await syncBidirectional(currentUser.uid, {
@@ -112,11 +124,15 @@ const AppSettings = () => {
       });
 
       if (result.success) {
-        toast.success('Data synced successfully!');
+        const uploaded = result.uploaded.watchLater + result.uploaded.watched;
+        const downloaded = result.downloaded.watchLater + result.downloaded.watched;
+        toast.success(`Sync complete: ${uploaded} uploaded, ${downloaded} downloaded`);
         setSynced(true);
+        setSyncSummary(result);
         sessionStorage.setItem('lastSyncTime', Date.now().toString());
       } else {
-        toast.error('Failed to sync data');
+        setSyncSummary(result);
+        toast.error(result.failures?.[0] || 'Some data could not be synced');
       }
     } catch (error) {
       console.error('Sync error:', error);
@@ -193,12 +209,12 @@ const AppSettings = () => {
                 {/* Manual Sync */}
                 <div className="flex items-center justify-between py-2">
                   <div className="flex-1 pr-4">
-                    <p className="font-semibold text-sm text-white">Sync to Google Cloud</p>
+                    <p className="font-semibold text-sm text-white">Sync with Cloud Firestore</p>
                     <p className="text-xs text-gray-400">Sync data between device and cloud</p>
                   </div>
                   <button
                     onClick={handleSyncToCloud}
-                    disabled={syncing || synced}
+                    disabled={syncing}
                     className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex-shrink-0 flex items-center gap-2 ${
                       synced 
                         ? 'bg-green-600 text-white cursor-default' 
@@ -229,12 +245,28 @@ const AppSettings = () => {
                   </button>
                 </div>
                 
+                {syncSummary && (
+                  <div className="bg-black border border-red-600/50 rounded-lg p-3 mb-3">
+                    <p className="text-xs text-red-400">
+                      Uploaded: {syncSummary.uploaded.watchLater} Watch Later, {syncSummary.uploaded.watched} Watched
+                    </p>
+                    <p className="text-xs text-red-400">
+                      Downloaded: {syncSummary.downloaded.watchLater} Watch Later, {syncSummary.downloaded.watched} Watched
+                    </p>
+                    {syncSummary.failures?.length > 0 && (
+                      <p className="text-xs text-red-300 mt-1">
+                        Failed: {syncSummary.failures.join('; ')}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="bg-blue-900/20 border border-blue-800/30 rounded-lg p-3">
                   <p className="text-xs text-blue-300">
                     <strong>Logged in as:</strong> {currentUser.email}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    Data syncs automatically when you add/remove items. Use this button to manually sync all data bidirectionally between this device and cloud.
+                    Sync your local library with Cloud Firestore. Local-only items upload, cloud-only items download, and nothing is automatically deleted.
                   </p>
                 </div>
               </div>
@@ -283,18 +315,33 @@ const AppSettings = () => {
               <div className="flex items-center justify-between py-2 border-t border-gray-800">
                 <div className="flex-1 pr-4">
                   <p className="font-semibold text-sm text-white">Clear All Data</p>
-                  <p className="text-xs text-gray-400">Remove everything (cannot be undone)</p>
+                  <p className="text-xs text-gray-400">Remove all local data. This cannot be undone.</p>
                 </div>
-                <button
-                  onClick={handleClearData}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex-shrink-0 ${
-                    showConfirm
-                      ? 'bg-red-700 hover:bg-red-800 text-white animate-pulse'
-                      : 'bg-red-600 hover:bg-red-700 text-white'
-                  }`}
-                >
-                  {showConfirm ? 'Confirm?' : 'Clear'}
-                </button>
+                {showConfirm ? (
+                  <div className="flex flex-col items-end gap-2">
+                    <input
+                      value={confirmText}
+                      onChange={(event) => setConfirmText(event.target.value)}
+                      placeholder="Type CLEAR ALL"
+                      aria-label="Type CLEAR ALL to confirm"
+                      className="w-36 rounded-lg border border-red-500 bg-black px-2 py-2 text-xs text-white"
+                    />
+                    <button
+                      onClick={handleClearData}
+                      disabled={confirmText !== 'CLEAR ALL'}
+                      className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-700 hover:bg-red-800 text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Permanently Clear
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowConfirm(true)}
+                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    Clear
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -311,7 +358,7 @@ const AppSettings = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-400">Author</p>
-                <p className="font-semibold">Talha Malik</p>
+                <p className="font-semibold">Talha Mumtaz</p>
               </div>
 
             </div>
@@ -323,4 +370,3 @@ const AppSettings = () => {
 };
 
 export default AppSettings;
-

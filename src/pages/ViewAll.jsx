@@ -1,53 +1,33 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getNowPlayingMovies, getStreamingContent, getPopularMovies, getPopularTVShows, getTVShowsByGenre } from '../utils/api';
 import { getSetting, getWatched } from '../utils/storage';
 import MovieCard from '../components/MovieCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { FiArrowLeft } from 'react-icons/fi';
+import { useAuth } from '../contexts/AuthContext';
 
 const ViewAll = () => {
   const { type } = useParams(); // theatre, streaming, movies, tv, anime
   const navigate = useNavigate();
-  const location = useLocation();
+  const { currentUser } = useAuth();
   const [items, setItems] = useState([]);
   const [allItems, setAllItems] = useState([]); // Store all items before filtering
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [sortBy, setSortBy] = useState('all'); // 'all', 'date', 'year', 'az'
-  const [selectedYear, setSelectedYear] = useState('');
-  const [selectedLetter, setSelectedLetter] = useState('');
+  const sortBy = 'all'; // 'all', 'date', 'year', 'az'
+  const selectedYear = '';
+  const selectedLetter = '';
   const observerRef = useRef();
   const lastElementRef = useRef();
   const shouldRestoreRef = useRef(false);
 
-  // Generate years from current year down to 1900
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: currentYear - 1899 }, (_, i) => currentYear - i);
-  
-  // Generate alphabet array
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-
-  // Handle sort button click
-  const handleSortChange = (newSortBy) => {
-    if (sortBy === newSortBy) {
-      // If clicking the same sort, reset it
-      setSortBy('all');
-      setSelectedYear('');
-      setSelectedLetter('');
-    } else {
-      setSortBy(newSortBy);
-      setSelectedYear('');
-      setSelectedLetter('');
-    }
-  };
-
   // Filter function to remove watched items if setting is enabled
   const filterWatchedItems = (items, mediaType = null) => {
     const hideWatched = getSetting('hideWatchedFromHome', false);
-    if (!hideWatched) return items;
+    if (!hideWatched || !currentUser) return items;
     
     const watchedItems = getWatched();
     const watchedMap = new Map();
@@ -110,28 +90,15 @@ const ViewAll = () => {
   // Restore state BEFORE first paint - runs on mount and when navigating back
   useLayoutEffect(() => {
     if (config) {
-      console.log('=== ViewAll Layout Effect ===');
-      console.log('Type:', type);
-      console.log('Location key:', location.key);
-      console.log('Current items count:', items.length);
-      console.log('shouldRestoreRef:', shouldRestoreRef.current);
       
       const savedState = sessionStorage.getItem(`viewall_state_${type}`);
-      console.log('Saved state exists:', !!savedState);
       
       if (savedState) {
         try {
           const { items: savedItems, page: savedPage, hasMore: savedHasMore, scrollPos } = JSON.parse(savedState);
-          console.log('Saved state details:', {
-            itemCount: savedItems.length,
-            page: savedPage,
-            hasMore: savedHasMore,
-            scrollPos: scrollPos
-          });
           
           // If we have saved items, restore them immediately
           if (savedItems && savedItems.length > 0) {
-            console.log('RESTORING ITEMS AND SCROLL');
             shouldRestoreRef.current = true;
             setItems(savedItems);
             setPage(savedPage);
@@ -140,24 +107,20 @@ const ViewAll = () => {
             
             // Restore scroll position
             if (scrollPos) {
-              console.log('Scrolling to position:', scrollPos);
               // Use requestAnimationFrame to ensure DOM is ready
               requestAnimationFrame(() => {
                 window.scrollTo(0, scrollPos);
-                console.log('Scroll applied, current position:', window.scrollY);
               });
             }
             
             // Mark restoration complete after a delay
             setTimeout(() => {
               shouldRestoreRef.current = false;
-              console.log('Restoration complete');
             }, 2500);
             
             return; // IMPORTANT: Exit early to prevent loadData() from running
           } else {
             // No items saved, load fresh
-            console.log('No items in saved state, loading fresh');
             sessionStorage.removeItem(`viewall_state_${type}`);
           }
         } catch (error) {
@@ -165,7 +128,6 @@ const ViewAll = () => {
           sessionStorage.removeItem(`viewall_state_${type}`);
         }
       } else {
-        console.log('No saved state found, loading fresh data');
       }
       
       // Only load data if we didn't restore from saved state
@@ -185,7 +147,6 @@ const ViewAll = () => {
         
         const restoreScroll = () => {
           if (scrollPos && window.scrollY !== scrollPos) {
-            console.log('Fine-tuning scroll to:', scrollPos, 'Current:', window.scrollY);
             window.scrollTo(0, scrollPos);
           }
         };
@@ -201,10 +162,11 @@ const ViewAll = () => {
         setTimeout(() => {
           restoreScroll();
           shouldRestoreRef.current = false;
-          console.log('Scroll restoration complete. Final position:', window.scrollY);
         }, 2000);
       }
     }
+    // Scroll restoration uses the route type associated with the saved state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
   // Save state continuously as user scrolls
@@ -219,7 +181,6 @@ const ViewAll = () => {
           scrollPos: currentScroll
         };
         
-        console.log('Saving state with key:', `viewall_state_${type}`, 'itemCount:', items.length, 'scrollPos:', currentScroll);
         sessionStorage.setItem(`viewall_state_${type}`, JSON.stringify(stateToSave));
       }
     };
@@ -238,7 +199,6 @@ const ViewAll = () => {
       window.removeEventListener('scroll', handleScroll);
       clearInterval(intervalId);
       saveState(); // Final save
-      console.log('Component unmounting, saved state');
     };
   }, [items, page, hasMore, type]);
 
@@ -261,6 +221,9 @@ const ViewAll = () => {
         observerRef.current.disconnect();
       }
     };
+
+    // The observer callback intentionally uses the current loader closure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasMore, loadingMore, loading]);
 
   // Observe last element
@@ -294,7 +257,6 @@ const ViewAll = () => {
       }
       
       // Load all pages simultaneously
-      console.log(`Loading ${pagesToLoad} pages...`);
       const results = await Promise.all(promises);
       
       // Combine all results
@@ -310,7 +272,6 @@ const ViewAll = () => {
       });
       
       const filteredItems = filterWatchedItems(allResults, config.mediaType);
-      console.log(`Loaded ${filteredItems.length} items total. Max pages available: ${maxPages}`);
       setAllItems(filteredItems);
       setItems(filteredItems);
       setPage(pagesToLoad);
@@ -327,9 +288,10 @@ const ViewAll = () => {
   useEffect(() => {
     // Don't reload if we're currently restoring state
     if (config && config.supportsSort && !shouldRestoreRef.current) {
-      console.log('Sort/filter changed, reloading data');
       loadData();
     }
+    // Reload when sorting or filtering changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortBy, selectedYear, selectedLetter]);
 
   const loadMore = async () => {
@@ -348,7 +310,6 @@ const ViewAll = () => {
         promises.push(config.fetchFunction(i, sortParam, selectedYear, selectedLetter));
       }
       
-      console.log(`Loading ${batchSize} more pages (${nextPage} to ${nextPage + batchSize - 1})...`);
       const results = await Promise.all(promises);
       
       // Combine results
@@ -367,7 +328,6 @@ const ViewAll = () => {
       setItems(updatedAllItems);
       setPage(nextPage + batchSize - 1);
       setHasMore(hasMorePages);
-      console.log(`Loaded ${newFilteredItems.length} more items. Total: ${updatedAllItems.length}`);
     } catch (error) {
       console.error('Error loading more data:', error);
     } finally {
@@ -403,6 +363,8 @@ const ViewAll = () => {
           <button
             onClick={() => navigate('/')}
             className="text-white hover:text-red-600 transition-colors"
+            aria-label="Back to home"
+            title="Back to home"
           >
             <FiArrowLeft className="text-3xl" />
           </button>
@@ -412,7 +374,7 @@ const ViewAll = () => {
         </div>
 
         {/* Content Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+        <div className="media-grid">
           {items.map((item, index) => {
             // Add ref to the last item for infinite scroll
             if (items.length === index + 1) {

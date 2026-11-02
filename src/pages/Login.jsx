@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
 
@@ -6,24 +7,42 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const { login, signup } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const { currentUser, loading, login, signup, resetPassword } = useAuth();
+  const navigate = useNavigate();
   const toast = useToast();
+
+  useEffect(() => {
+    if (!loading && currentUser) {
+      navigate('/', { replace: true });
+    }
+  }, [currentUser, loading, navigate]);
+
+  if (loading || currentUser) {
+    return (
+      <div className="fixed inset-0 bg-background-darker flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-500" />
+      </div>
+    );
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage('');
     
     if (!email || !password) {
       toast.error('Please fill in all fields');
       return;
     }
 
-    if (password.length < 6) {
+    if (isSignUp && password.length < 6) {
       toast.error('Password must be at least 6 characters');
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       if (isSignUp) {
@@ -32,9 +51,16 @@ const Login = () => {
         await login(email, password);
       }
       // Redirect will happen automatically via AuthContext
-      window.location.href = '/';
+      navigate('/', { replace: true });
     } catch (error) {
       console.error('Auth error:', error);
+      setErrorMessage(error.code === 'auth/user-not-found'
+        ? 'No account found with this email.'
+        : error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential'
+          ? 'Invalid email or password.'
+          : isSignUp
+            ? 'Failed to create account'
+            : 'Failed to login');
       
       // Handle specific error codes
       switch (error.code) {
@@ -60,7 +86,23 @@ const Login = () => {
           toast.error(isSignUp ? 'Failed to create account' : 'Failed to login');
       }
     } finally {
-      setLoading(false);
+      setSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setErrorMessage('Enter your email address first.');
+      return;
+    }
+    try {
+      await resetPassword(email);
+      setErrorMessage('Password reset email sent. Check your inbox.');
+    } catch (error) {
+      console.error('Password reset error:', error);
+      setErrorMessage(error.code === 'auth/user-not-found'
+        ? 'No account found with this email.'
+        : 'Unable to send a password reset email.');
     }
   };
 
@@ -111,7 +153,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="w-full px-4 py-3 bg-card-dark border border-white/10 rounded-xl text-white placeholder-text-muted focus:border-accent-purple focus:outline-none focus:ring-2 focus:ring-accent-purple/20 transition-all"
-                disabled={loading}
+                disabled={submitting}
               />
             </div>
 
@@ -120,24 +162,49 @@ const Login = () => {
                 Password
               </label>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full px-4 py-3 bg-card-dark border border-white/10 rounded-xl text-white placeholder-text-muted focus:border-accent-purple focus:outline-none focus:ring-2 focus:ring-accent-purple/20 transition-all"
-                disabled={loading}
+                disabled={submitting}
               />
-              <p className="text-xs text-text-muted mt-1">
-                Minimum 6 characters
-              </p>
+              <div className="flex items-center justify-between mt-1">
+                {isSignUp ? (
+                  <p className="text-xs text-text-muted">Minimum 6 characters</p>
+                ) : <span />}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="text-xs text-red-400 hover:text-red-300 min-h-8 px-1"
+                >
+                  {showPassword ? 'Hide password' : 'Show password'}
+                </button>
+              </div>
             </div>
+
+            {errorMessage && (
+              <p role="alert" className="rounded-lg border border-red-500/50 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+                {errorMessage}
+              </p>
+            )}
+
+            {!isSignUp && (
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                className="text-sm text-red-400 hover:text-red-300 min-h-8"
+              >
+                Forgot password?
+              </button>
+            )}
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={submitting}
               className="w-full bg-gradient-red text-white font-bold py-3 rounded-xl hover:shadow-red transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {loading ? (
+              {submitting ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>

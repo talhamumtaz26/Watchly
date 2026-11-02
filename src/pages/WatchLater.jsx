@@ -1,23 +1,43 @@
-﻿import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
 import { getWatchLater, removeFromWatchLater, addToWatched } from '../utils/storage';
-import { getWatchLaterCloud, removeFromWatchLaterCloud, addToWatchedCloud } from '../utils/cloudStorage';
+import {
+  getWatchLaterCloud,
+  removeFromWatchLaterCloud,
+  addToWatchedCloud,
+  subscribeToWatchLaterCloud,
+} from '../utils/cloudStorage';
 import MovieCard from '../components/MovieCard';
-import { FiClock, FiTrash2, FiCheckCircle } from 'react-icons/fi';
-import { MdMovie, MdTv } from 'react-icons/md';
 
 const WatchLater = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { currentUser } = useAuth();
 
   useEffect(() => {
+    if (currentUser) {
+      setLoading(true);
+      const unsubscribe = subscribeToWatchLaterCloud(
+        currentUser.uid,
+        (cloudItems) => {
+          setItems(cloudItems);
+          setLoading(false);
+        },
+        () => {
+          toast.error('Unable to sync Watch Later in real time');
+          setLoading(false);
+        }
+      );
+      return unsubscribe;
+    }
+
     loadItems();
-  }, [user]);
+    // Reload when authentication changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   // Reload items when window regains focus (for cross-device sync)
   useEffect(() => {
@@ -28,12 +48,14 @@ const WatchLater = () => {
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [user]);
+    // Reload on focus for cross-device changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   const loadItems = async () => {
     try {
-      if (user) {
-        const cloudItems = await getWatchLaterCloud(user.uid);
+      if (currentUser) {
+        const cloudItems = await getWatchLaterCloud(currentUser.uid);
         setItems(cloudItems);
       } else {
         const localItems = getWatchLater();
@@ -56,8 +78,9 @@ const WatchLater = () => {
     }
 
     try {
-      if (user) {
-        await removeFromWatchLaterCloud(user.uid, id, mediaType);
+      if (currentUser) {
+        const success = await removeFromWatchLaterCloud(currentUser.uid, id, mediaType);
+        if (!success) throw new Error('Cloud removal failed');
       } else {
         removeFromWatchLater(id, mediaType);
       }
@@ -71,9 +94,11 @@ const WatchLater = () => {
 
   const handleMarkAsWatched = async (item) => {
     try {
-      if (user) {
-        await addToWatchedCloud(user.uid, item);
-        await removeFromWatchLaterCloud(user.uid, item.id, item.media_type);
+      if (currentUser) {
+        const added = await addToWatchedCloud(currentUser.uid, item);
+        if (!added) throw new Error('Cloud watched update failed');
+        const removed = await removeFromWatchLaterCloud(currentUser.uid, item.id, item.media_type);
+        if (!removed) throw new Error('Cloud watch later removal failed');
       } else {
         addToWatched(item);
         removeFromWatchLater(item.id, item.media_type);
@@ -169,7 +194,7 @@ const WatchLater = () => {
                   <p className="text-[20px] font-bold text-white leading-none mb-1.5">
                     {items.length}
                   </p>
-                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
+                  <p className="text-xs text-[#8e8e93] font-normal whitespace-nowrap">
                     Total Items
                   </p>
                 </div>
@@ -177,7 +202,7 @@ const WatchLater = () => {
                   <p className="text-[20px] font-bold text-white leading-none mb-1.5">
                     {movieCount}
                   </p>
-                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
+                  <p className="text-xs text-[#8e8e93] font-normal whitespace-nowrap">
                     Movies
                   </p>
                 </div>
@@ -185,7 +210,7 @@ const WatchLater = () => {
                   <p className="text-[20px] font-bold text-white leading-none mb-1.5">
                     {tvCount}
                   </p>
-                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
+                  <p className="text-xs text-[#8e8e93] font-normal whitespace-nowrap">
                     Series
                   </p>
                 </div>
@@ -193,7 +218,7 @@ const WatchLater = () => {
                   <p className="text-[20px] font-bold text-white leading-none mb-1.5 whitespace-nowrap">
                     {formatTime(totalTime)}
                   </p>
-                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
+                  <p className="text-xs text-[#8e8e93] font-normal whitespace-nowrap">
                     Est. Time
                   </p>
                 </div>
@@ -203,7 +228,7 @@ const WatchLater = () => {
         )}
 
         {/* Movies Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-5">
+        <div className="media-grid">
             {items.map((item) => (
               <div key={item.id} className="relative">
                 <MovieCard item={item} />

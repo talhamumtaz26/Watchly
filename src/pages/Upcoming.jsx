@@ -12,6 +12,8 @@ const Upcoming = () => {
 
   useEffect(() => {
     loadUpcoming();
+    // Load upcoming releases once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadUpcoming = async () => {
@@ -38,15 +40,21 @@ const Upcoming = () => {
 
       // Combine all results
       const allMovies = moviePages.flatMap(page => 
-        page.results.map(m => ({ ...m, media_type: 'movie' }))
+        page.results
+          .filter((m) => m.original_language === 'en' && m.poster_path && (m.title || m.original_title))
+          .map(m => ({ ...m, media_type: 'movie' }))
       );
 
       const allTVShows = tvPages.flatMap(page => 
-        page.results.map(t => ({ ...t, media_type: 'tv' }))
+        page.results
+          .filter((t) => t.original_language === 'en' && t.poster_path && (t.name || t.original_name))
+          .map(t => ({ ...t, media_type: 'tv' }))
       );
 
       const allAnime = animePages.flatMap(page => 
-        page.results.map(a => ({ ...a, media_type: 'tv', isAnime: true }))
+        page.results
+          .filter((a) => a.poster_path && (a.name || a.original_name))
+          .map(a => ({ ...a, media_type: 'tv', isAnime: true }))
       );
 
       // Combine and filter
@@ -66,13 +74,18 @@ const Upcoming = () => {
         })
         // Remove duplicates
         .filter((item, index, self) => 
-          index === self.findIndex(t => t.id === item.id && t.media_type === item.media_type)
+          index === self.findIndex(t => (
+            t.id === item.id
+            && t.media_type === item.media_type
+            && Boolean(t.isAnime) === Boolean(item.isAnime)
+          ))
         );
 
       console.log('Upcoming content loaded:', filtered.length, 'items');
       setUpcomingItems(filtered);
     } catch (error) {
       console.error('Error loading upcoming content:', error);
+      toast.error('Unable to load upcoming releases. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -160,7 +173,7 @@ const Upcoming = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          <div className="media-grid">
             {filteredItems.map((item) => {
               // Create a modified item with release date in place of rating
               const modifiedItem = {

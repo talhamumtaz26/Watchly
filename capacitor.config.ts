@@ -4,14 +4,15 @@ const config: CapacitorConfig = {
   appId: 'com.watchly.app',
   appName: 'Watchly',
   webDir: 'build',
+  android: { adjustMarginsForEdgeToEdge: 'force', backgroundColor: '#000000' },
   server: {
     hostname: 'watchly-1a156.web.app',
     androidScheme: 'https'
   },
   plugins: {
+    StatusBar: { style: 'DARK', backgroundColor: '#000000' },
     SplashScreen: {
-      launchShowDuration: 2000,
-      launchAutoHide: true,
+      launchAutoHide: false,
       launchFadeOutDuration: 300,
       backgroundColor: "#000000",
       androidSplashResourceName: "splash",

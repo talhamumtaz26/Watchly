@@ -24,9 +24,12 @@
   "start_url": ".",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "theme_color": "#A855F7",
-  "background_color": "#0B1120",
-  "categories": ["entertainment", "lifestyle"],
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "categories": [
+    "entertainment",
+    "lifestyle"
+  ],
   "scope": "/",
   "lang": "en-US"
 }

@@ -9,6 +9,9 @@ import LoadingSpinner from './components/LoadingSpinner';
 import ScrollToTop from './components/ScrollToTop';
 import { App as CapacitorApp } from '@capacitor/app';
 import './App.css';
+import { Capacitor } from '@capacitor/core';
+import { SplashScreen } from '@capacitor/splash-screen';
+import OfflineNotice from './components/OfflineNotice';
 
 // Lazy load all page components for better performance
 const Home = lazy(() => import('./pages/Home'));
@@ -28,7 +31,7 @@ const ViewAll = lazy(() => import('./pages/ViewAll'));
 // Component to handle back button
 function BackButtonHandler() {
   const location = useLocation();
-  const { showToast } = useToast();
+  const { info } = useToast();
   const [lastBackPress, setLastBackPress] = useState(0);
 
   useEffect(() => {
@@ -49,7 +52,7 @@ function BackButtonHandler() {
           } else {
             // First press, show toast
             setLastBackPress(now);
-            showToast('Press back again to exit', 'info');
+            info('Press back again to exit');
           }
         } else if (canGoBack) {
           // On other pages, use browser's back navigation
@@ -65,7 +68,7 @@ function BackButtonHandler() {
         listener.remove();
       }
     };
-  }, [location, lastBackPress, showToast]);
+  }, [location, lastBackPress, info]);
 
   return null;
 }
@@ -77,14 +80,12 @@ function App() {
     // Force dark mode always
     document.documentElement.classList.add('dark');
 
-    // Simulate app initialization (you can add actual init logic here)
-    const initializeApp = async () => {
-      // Add any initialization logic here (e.g., check auth, load settings)
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Minimum 1 second loading
-      setAppReady(true);
-    };
-
-    initializeApp();
+    setAppReady(true);
+    // Reveal the rendered app shell; data loading remains visible in React.
+    const frame = requestAnimationFrame(() => {
+      if (Capacitor.isNativePlatform()) SplashScreen.hide().catch(console.error);
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   // Show loading screen while app initializes
@@ -102,8 +103,9 @@ function App() {
         <Router>
           <ScrollToTop />
           <BackButtonHandler />
-          <div className="App min-h-screen bg-black transition-colors duration-200 pb-16 md:pb-0">
+          <div className="App safe-content min-h-screen bg-black transition-colors duration-200 pb-16 md:pb-0">
             <Navbar />
+            <OfflineNotice />
             <BottomNav />
             <Suspense fallback={<LoadingSpinner fullScreen={true} message="Loading..." />}>
               <Routes>

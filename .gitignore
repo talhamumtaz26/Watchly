@@ -22,3 +22,19 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+/functions/node_modules/
+/functions/.env*
+/functions/.secret*
+/.firebase/
+android/.idea/
+android/local.properties
+*.jks
+*.keystore
+
+# backups and temp files
+*.backup
+*_temp.jsx
+
+# editor state
+.idea/

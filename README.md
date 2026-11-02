@@ -19,11 +19,13 @@ A modern, feature-rich Progressive Web App (PWA) for tracking movies, TV shows, 
 
 ### User Experience
 
-- **Progressive Web App (PWA)** - Install on any device and use offline
+- **Installable Web App** - Install on supported devices
 - **Android App Support** - Built with Capacitor for native Android experience
 - **Smart Back Navigation** - Double-tap to exit from home, intuitive navigation throughout
 - **Scroll Position Memory** - Returns to exact scroll position when navigating back
 - **Responsive Design** - Optimized for mobile, tablet, and desktop
+- **Consistent Library Layout** - Shared responsive poster grids across
+  discovery and personal-library pages
 
 ### Personal Library
 
@@ -36,8 +38,16 @@ A modern, feature-rich Progressive Web App (PWA) for tracking movies, TV shows, 
 ### Authentication
 
 - **Firebase Auth** - Secure user authentication
+- **Author** - Talha Mumtaz
 - **Protected Routes** - Secure access to personal features
 - **User Profiles** - Personalized experience for each user
+
+## Release hardening
+
+See [RELEASE.md](RELEASE.md) for the required TMDb proxy deployment, key rotation,
+signed Android App Bundle steps, App Links setup, and device verification.
+Discovery requires the deployed proxy; TMDb credentials belong in the Cloudflare Worker
+secret, never in the frontend environment.
 
 ## Getting Started
 
@@ -74,24 +84,28 @@ A modern, feature-rich Progressive Web App (PWA) for tracking movies, TV shows, 
    Create a `.env` file in the project root:
 
    ```env
-   REACT_APP_TMDB_KEY=your_tmdb_api_key_here
-   REACT_APP_TMDB_BASE_URL=https://api.themoviedb.org/3
+   REACT_APP_TMDB_PROXY_URL=https://watchly-proxy.YOUR-SUBDOMAIN.workers.dev
    REACT_APP_TMDB_IMAGE_BASE_URL=https://image.tmdb.org/t/p
    ```
 
 5. **Set up Firebase (optional):**
 
-   Add your Firebase configuration to `src/firebase/config.js`:
+   Add these Firebase values to the same `.env` file:
 
-   ```javascript
-   const firebaseConfig = {
-     apiKey: "your-api-key",
-     authDomain: "your-auth-domain",
-     projectId: "your-project-id",
-     storageBucket: "your-storage-bucket",
-     messagingSenderId: "your-messaging-sender-id",
-     appId: "your-app-id",
-   };
+   ```env
+   REACT_APP_FIREBASE_API_KEY=your-api-key
+   REACT_APP_FIREBASE_AUTH_DOMAIN=your-auth-domain
+   REACT_APP_FIREBASE_PROJECT_ID=your-project-id
+   REACT_APP_FIREBASE_STORAGE_BUCKET=your-storage-bucket
+   REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
+   REACT_APP_FIREBASE_APP_ID=your-app-id
+   ```
+
+   Watchly uses Firebase Authentication and Firestore. Deploy the repository's
+   owner-only rules before using cloud sync:
+
+   ```bash
+   firebase deploy --only firestore:rules
    ```
 
 6. **Start the development server:**
@@ -120,6 +134,36 @@ npx cap sync android
 npx cap open android
 ```
 
+To build an APK from Android Studio:
+
+1. Install Android Studio with the Android SDK, SDK Platform, and an Android
+   SDK Build-Tools version.
+2. Install a supported JDK and configure Android Studio to use it under
+   **Settings → Build, Execution, Deployment → Build Tools → Gradle → Gradle
+   JDK**.
+3. Run the web build and Capacitor sync:
+
+   ```bash
+   npm run build
+   npx cap sync android
+   npx cap open android
+   ```
+
+4. In Android Studio, wait for Gradle sync to finish.
+5. For a test APK, select **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
+   The debug APK is written under
+   `android/app/build/outputs/apk/debug/app-debug.apk`.
+6. For a release APK, select **Build → Generate Signed Bundle / APK**, choose
+   **APK**, create or select a keystore, and complete the signing wizard.
+   Keep the keystore and passwords private and backed up.
+
+The command-line debug build can also be run from the Android directory:
+
+```bash
+cd android
+gradlew.bat assembleDebug
+```
+
 ## Tech Stack
 
 ### Frontend
@@ -132,15 +176,30 @@ npx cap open android
 ### Mobile & PWA
 
 - **Capacitor** - Cross-platform native runtime
-- **Service Workers** - Offline support and caching
 - **Web App Manifest** - PWA installation
 
 ### Backend & Storage
 
 - **Firebase Authentication** - User management
-- **Firebase Cloud Storage** - Data synchronization
+- **Cloud Firestore** - User libraries, watch-time stats, and realtime sync
 - **Session Storage** - State persistence
 - **Local Storage** - Offline data caching
+
+### Watch-time and sync behavior
+
+- Dashboard and Watched use the same calculated total from the Watched
+  collection and the shared `formatWatchTime()` helper.
+- TV items without a runtime use the episode runtime and episode-count
+  fallback already used by the Watched collection.
+- Firestore watch-time stats are rebuilt from Watched items when cloud stats
+  are read and after bidirectional sync, so stale incremental totals do not
+  override the collection.
+- Manual Sync Now performs a safe merge: local-only records upload,
+  cloud-only records download, duplicates are skipped, and no records are
+  automatically deleted.
+- Recent activity accepts Firestore Timestamp values, ISO strings, numeric
+  timestamps, and legacy `watchedAt`/`addedDate` fields. Missing or invalid
+  dates display as `Earlier`.
 
 ### APIs
 
@@ -158,14 +217,11 @@ Watchly/
 ├── src/
 │   ├── components/
 │   │   ├── BottomNav.jsx      # Mobile bottom navigation
-│   │   ├── GenreFilter.jsx    # Genre filtering component
 │   │   ├── LoadingSpinner.jsx # Loading states
 │   │   ├── MovieCard.jsx      # Content card component
 │   │   ├── MovieList.jsx      # Content list with carousel
 │   │   ├── Navbar.jsx         # Top navigation bar
 │   │   ├── ProtectedRoute.jsx # Auth route protection
-│   │   ├── SearchBar.jsx      # Search functionality
-│   │   ├── ThemeToggle.jsx    # Dark/light mode toggle
 │   │   └── Toast.jsx          # Notification system
 │   ├── contexts/
 │   │   └── AuthContext.jsx    # Authentication context
@@ -188,7 +244,8 @@ Watchly/
 │   ├── utils/
 │   │   ├── api.js             # TMDb API integration
 │   │   ├── storage.js         # Local storage utilities
-│   │   └── cloudStorage.js    # Firebase cloud storage
+│   │   ├── cloudStorage.js    # Firestore cloud storage and sync
+│   │   └── watchStats.js      # Shared watch-time and date normalization
 │   ├── App.js                 # Root component with routing
 │   ├── App.css               # Global styles
 │   ├── index.js              # React entry point

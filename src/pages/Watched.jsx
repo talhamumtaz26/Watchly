@@ -1,9 +1,14 @@
-﻿import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
 import { getWatched, removeFromWatched } from '../utils/storage';
-import { getWatchedCloud, removeFromWatchedCloud } from '../utils/cloudStorage';
+import {
+  getWatchedCloud,
+  removeFromWatchedCloud,
+  subscribeToWatchedCloud,
+} from '../utils/cloudStorage';
+import { getItemDate, getWatchTimeStats } from '../utils/watchStats';
 import MovieCard from '../components/MovieCard';
 
 const Watched = () => {
@@ -12,12 +17,29 @@ const Watched = () => {
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('dateWatched');
   const toast = useToast();
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { currentUser } = useAuth();
 
   useEffect(() => {
+    if (currentUser) {
+      setLoading(true);
+      const unsubscribe = subscribeToWatchedCloud(
+        currentUser.uid,
+        (cloudItems) => {
+          setItems(cloudItems);
+          setLoading(false);
+        },
+        () => {
+          toast.error('Unable to sync Watched in real time');
+          setLoading(false);
+        }
+      );
+      return unsubscribe;
+    }
+
     loadItems();
-  }, [user]);
+    // Reload when authentication changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   // Reload items when window regains focus (for cross-device sync)
   useEffect(() => {
@@ -28,12 +50,14 @@ const Watched = () => {
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [user]);
+    // Reload on focus for cross-device changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   const loadItems = async () => {
     try {
-      if (user) {
-        const cloudItems = await getWatchedCloud(user.uid);
+      if (currentUser) {
+        const cloudItems = await getWatchedCloud(currentUser.uid);
         setItems(cloudItems);
       } else {
         const localItems = getWatched();
@@ -56,8 +80,9 @@ const Watched = () => {
     }
 
     try {
-      if (user) {
-        await removeFromWatchedCloud(user.uid, id, mediaType);
+      if (currentUser) {
+        const success = await removeFromWatchedCloud(currentUser.uid, id, mediaType);
+        if (!success) throw new Error('Cloud removal failed');
       } else {
         removeFromWatched(id, mediaType);
       }
@@ -67,38 +92,6 @@ const Watched = () => {
       console.error('Error removing item:', error);
       toast.error('Failed to remove item');
     }
-  };
-
-  const calculateTotalTime = () => {
-    return items.reduce((total, item) => {
-      // If runtime is already provided (total runtime), use it directly
-      if (item.runtime) {
-        return total + item.runtime;
-      }
-      
-      // For TV shows without runtime, calculate based on episodes
-      if (item.media_type === 'tv') {
-        const episodeRuntime = item.episode_run_time?.[0] || 45; // Default 45 min per episode
-        const numberOfEpisodes = item.number_of_episodes || item.number_of_seasons * 10 || 10;
-        return total + (episodeRuntime * numberOfEpisodes);
-      }
-      
-      return total;
-    }, 0);
-  };
-
-  const formatTime = (minutes) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours === 0) return `${mins}m`;
-    if (mins === 0) return `${hours}h`;
-    return `${hours}h ${mins}m`;
-  };
-
-  const calculateDaysWorth = (minutes) => {
-    const hours = minutes / 60;
-    const days = Math.floor(hours / 24);
-    return days;
   };
 
   if (loading) {
@@ -132,10 +125,11 @@ const Watched = () => {
     );
   }
 
-  const totalTime = calculateTotalTime();
+  const watchTime = getWatchTimeStats(items);
+  const totalTime = watchTime.totalMinutes;
   const movieCount = items.filter((item) => item.media_type === 'movie').length;
   const tvCount = items.filter((item) => item.media_type === 'tv').length;
-  const daysWorth = calculateDaysWorth(totalTime);
+  const daysWorth = watchTime.days;
 
   // Filter items based on selected filter
   const filteredItems = items.filter((item) => {
@@ -148,7 +142,7 @@ const Watched = () => {
   // Sort items based on selected sort option
   const sortedItems = [...filteredItems].sort((a, b) => {
     if (sortBy === 'dateWatched') {
-      return new Date(b.watchedDate || b.addedDate) - new Date(a.watchedDate || a.addedDate);
+      return (getItemDate(b)?.getTime() || 0) - (getItemDate(a)?.getTime() || 0);
     }
     if (sortBy === 'name') {
       const nameA = (a.title || a.name || '').toLowerCase();
@@ -183,7 +177,7 @@ const Watched = () => {
                   <p className="text-[20px] font-bold text-white leading-none mb-1.5">
                     {items.length}
                   </p>
-                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
+                  <p className="text-xs text-[#8e8e93] font-normal whitespace-nowrap">
                     Total Items
                   </p>
                 </div>
@@ -191,7 +185,7 @@ const Watched = () => {
                   <p className="text-[20px] font-bold text-white leading-none mb-1.5">
                     {Math.floor(totalTime / 60)}h
                   </p>
-                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
+                  <p className="text-xs text-[#8e8e93] font-normal whitespace-nowrap">
                     Hours
                   </p>
                 </div>
@@ -199,7 +193,7 @@ const Watched = () => {
                   <p className="text-[20px] font-bold text-white leading-none mb-1.5">
                     {totalTime % 60}m
                   </p>
-                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
+                  <p className="text-xs text-[#8e8e93] font-normal whitespace-nowrap">
                     Minutes
                   </p>
                 </div>
@@ -207,7 +201,7 @@ const Watched = () => {
                   <p className="text-[20px] font-bold text-white leading-none mb-1.5">
                     {daysWorth}
                   </p>
-                  <p className="text-[10px] text-[#8e8e93] font-normal whitespace-nowrap">
+                  <p className="text-xs text-[#8e8e93] font-normal whitespace-nowrap">
                     Days
                   </p>
                 </div>
@@ -275,7 +269,7 @@ const Watched = () => {
         )}
 
         {/* Movies Section */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-5">
+        <div className="media-grid">
           {sortedItems.map((item) => (
             <div key={item.id} className="relative">
               <MovieCard item={item} />

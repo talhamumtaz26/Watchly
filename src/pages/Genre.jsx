@@ -19,6 +19,8 @@ const Genre = () => {
 
   useEffect(() => {
     loadGenreData();
+    // Reload when the route genre changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadGenreData = async () => {
@@ -156,7 +158,8 @@ const Genre = () => {
                         alt={title}
                         className="w-full rounded-lg shadow-lg group-hover:scale-105 transition-transform"
                         onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/500x750/1F2937/9CA3AF?text=No+Image';
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = '/placeholder-image.svg';
                         }}
                       />
                       {item.vote_average > 0 && (

@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { getImageUrl } from '../utils/api';
-import { FiStar, FiFilm, FiTv } from 'react-icons/fi';
 import { isWatched } from '../utils/storage';
+import { useAuth } from '../contexts/AuthContext';
+import { getMediaTypeLabel } from '../utils/media';
 
 const MovieCard = ({ item, showType = true, saveScrollOnClick = false }) => {
+  const { currentUser } = useAuth();
   // Determine media type
   const mediaType = item.media_type || (item.title ? 'movie' : 'tv');
   const title = item.title || item.name;
@@ -12,19 +14,8 @@ const MovieCard = ({ item, showType = true, saveScrollOnClick = false }) => {
   const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
   
   // Check if item is watched
-  const watched = isWatched(item.id, mediaType);
+  const watched = currentUser ? isWatched(item.id, mediaType) : false;
   
-  // Format date as "Month Day, Year"
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Coming Soon';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
   const handleClick = () => {
     if (saveScrollOnClick) {
       // Save current scroll position
@@ -48,7 +39,7 @@ const MovieCard = ({ item, showType = true, saveScrollOnClick = false }) => {
           className="w-full h-full object-cover"
           loading="lazy"
           onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/500x750/1E293B/94A3B8?text=No+Image';
+            e.target.src = '/placeholder-image.svg';
           }}
         />
         
@@ -88,7 +79,7 @@ const MovieCard = ({ item, showType = true, saveScrollOnClick = false }) => {
         <div className="flex items-center gap-1.5 text-xs text-gray-400">
           <span className="font-medium">{year}</span>
           <span className="text-gray-600">•</span>
-          <span className="font-medium text-red-600 capitalize">{mediaType === 'movie' ? 'Movie' : 'Series'}</span>
+          <span className="font-medium text-red-600">{getMediaTypeLabel(item)}</span>
         </div>
       </div>
     </Link>

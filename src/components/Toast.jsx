@@ -13,11 +13,15 @@ export const useToast = () => {
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
+  const removeToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, []);
+
   const addToast = useCallback((message, type = 'info', duration = 3000) => {
     const id = Date.now() + Math.random();
     const toast = { id, message, type, duration };
     
-    setToasts((prev) => [...prev, toast]);
+    setToasts([toast]);
 
     if (duration > 0) {
       setTimeout(() => {
@@ -26,11 +30,7 @@ export const ToastProvider = ({ children }) => {
     }
 
     return id;
-  }, []);
-
-  const removeToast = useCallback((id) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  }, []);
+  }, [removeToast]);
 
   const success = useCallback((message, duration) => {
     return addToast(message, 'success', duration);
@@ -73,7 +73,7 @@ const Toast = ({ toast, onClose }) => {
     success: 'bg-green-500 text-white',
     error: 'bg-red-500 text-white',
     warning: 'bg-yellow-500 text-white',
-    info: 'bg-blue-500 text-white',
+    info: 'bg-black text-red-500 border border-red-600',
   };
 
   const icons = {

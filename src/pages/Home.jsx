@@ -1,34 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { getNowPlayingMovies, getStreamingContent, getPopularMovies, getPopularTVShows, getMoviesByGenre, getTVShowsByGenre, getMoviesByRegion } from '../utils/api';
+import { getNowPlayingMovies, getStreamingContent, getPopularMovies, getPopularTVShows, getTVShowsByGenre } from '../utils/api';
 import { getSetting, getWatched } from '../utils/storage';
 import MovieList from '../components/MovieList';
-import { FaFilm, FaTv, FaTheaterMasks } from 'react-icons/fa';
-import { GiJapan } from 'react-icons/gi';
-import { MdLiveTv } from 'react-icons/md';
+import { useAuth } from '../contexts/AuthContext';
 
 const Home = () => {
+  const { currentUser } = useAuth();
   const [theatreMovies, setTheatreMovies] = useState([]);
   const [streamingContent, setStreamingContent] = useState([]);
   const [popularMovies, setPopularMovies] = useState([]);
   const [popularTVShows, setPopularTVShows] = useState([]);
   const [animeShows, setAnimeShows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedGenre, setSelectedGenre] = useState(null);
-  const [searchGenre, setSearchGenre] = useState(null);
-  const [searchCategory, setSearchCategory] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [moviePage, setMoviePage] = useState(1);
-  const [tvPage, setTVPage] = useState(1);
-  const [animePage, setAnimePage] = useState(1);
-  const [hasMoreMovies, setHasMoreMovies] = useState(true);
-  const [hasMoreTV, setHasMoreTV] = useState(true);
-  const [hasMoreAnime, setHasMoreAnime] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [selectedGenre] = useState(null);
+  const [selectedCategory] = useState(null);
 
   // Filter function to remove watched items if setting is enabled
   const filterWatchedItems = (items, mediaType = null) => {
     const hideWatched = getSetting('hideWatchedFromHome', false);
-    if (!hideWatched) return items;
+    if (!hideWatched || !currentUser) return items;
     
     const watchedItems = getWatched();
     const watchedMap = new Map();
@@ -49,23 +39,12 @@ const Home = () => {
 
   useEffect(() => {
     loadData();
+    // Load the default sections once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (selectedGenre) {
-      loadFilteredData();
-    } else if (selectedCategory) {
-      loadCategoryData();
-    } else {
-      loadData();
-    }
-  }, [selectedGenre, selectedCategory]);
 
   const loadData = async () => {
     setLoading(true);
-    setMoviePage(1);
-    setTVPage(1);
-    setAnimePage(1);
     try {
       const [theatreData, streamingData, moviesData, tvData, animeData] = await Promise.all([
         getNowPlayingMovies(1),
@@ -79,144 +58,14 @@ const Home = () => {
       setStreamingContent(filterWatchedItems(streamingData.results, 'movie'));
       setPopularMovies(filterWatchedItems(moviesData.results, 'movie'));
       setPopularTVShows(filterWatchedItems(tvData.results, 'tv'));
-      setAnimeShows(filterWatchedItems(animeData.results, 'tv'));
-      setHasMoreMovies(moviesData.page < moviesData.total_pages);
-      setHasMoreTV(tvData.page < tvData.total_pages);
-      setHasMoreAnime(animeData.page < animeData.total_pages);
+      setAnimeShows(filterWatchedItems(
+        animeData.results.map((item) => ({ ...item, media_type: 'tv', isAnime: true })),
+        'tv'
+      ));
     } catch (error) {
       console.error('Error loading home data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadFilteredData = async () => {
-    setLoading(true);
-    setMoviePage(1);
-    setTVPage(1);
-    try {
-      const [moviesData, tvData] = await Promise.all([
-        getMoviesByGenre(selectedGenre, 1),
-        getTVShowsByGenre(selectedGenre, 1),
-      ]);
-
-      setPopularMovies(filterWatchedItems(moviesData.results, 'movie'));
-      setPopularTVShows(filterWatchedItems(tvData.results, 'tv'));
-      setHasMoreMovies(moviesData.page < moviesData.total_pages);
-      setHasMoreTV(tvData.page < tvData.total_pages);
-    } catch (error) {
-      console.error('Error loading filtered data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCategoryData = async () => {
-    setLoading(true);
-    setMoviePage(1);
-    setTVPage(1);
-    try {
-      const moviesData = await getMoviesByRegion(
-        selectedCategory.region,
-        selectedCategory.language,
-        1
-      );
-
-      setPopularMovies(filterWatchedItems(moviesData.results, 'movie'));
-      setPopularTVShows([]); // Categories only show movies
-      setHasMoreMovies(moviesData.page < moviesData.total_pages);
-      setHasMoreTV(false);
-    } catch (error) {
-      console.error('Error loading category data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMoreMovies = async () => {
-    if (!hasMoreMovies || loadingMore) return;
-    
-    setLoadingMore(true);
-    const nextPage = moviePage + 1;
-    
-    try {
-      const data = selectedCategory
-        ? await getMoviesByRegion(selectedCategory.region, selectedCategory.language, nextPage)
-        : selectedGenre
-        ? await getMoviesByGenre(selectedGenre, nextPage)
-        : await getPopularMovies(nextPage);
-      
-      setPopularMovies(prev => [...prev, ...filterWatchedItems(data.results, 'movie')]);
-      setMoviePage(nextPage);
-      setHasMoreMovies(data.page < data.total_pages);
-    } catch (error) {
-      console.error('Error loading more movies:', error);
-    } finally {
-      setLoadingMore(false);
-    }
-  };
-
-  const loadMoreTV = async () => {
-    if (!hasMoreTV || loadingMore) return;
-    
-    setLoadingMore(true);
-    const nextPage = tvPage + 1;
-    
-    try {
-      const data = selectedGenre
-        ? await getTVShowsByGenre(selectedGenre, nextPage)
-        : await getPopularTVShows(nextPage);
-      
-      setPopularTVShows(prev => [...prev, ...filterWatchedItems(data.results, 'tv')]);
-      setTVPage(nextPage);
-      setHasMoreTV(data.page < data.total_pages);
-    } catch (error) {
-      console.error('Error loading more TV shows:', error);
-    } finally {
-      setLoadingMore(false);
-    }
-  };
-
-  const loadMoreAnime = async () => {
-    if (!hasMoreAnime || loadingMore) return;
-    
-    setLoadingMore(true);
-    const nextPage = animePage + 1;
-    
-    try {
-      const data = await getTVShowsByGenre(16, nextPage);
-      
-      setAnimeShows(prev => [...prev, ...filterWatchedItems(data.results, 'tv')]);
-      setAnimePage(nextPage);
-      setHasMoreAnime(data.page < data.total_pages);
-    } catch (error) {
-      console.error('Error loading more anime:', error);
-    } finally {
-      setLoadingMore(false);
-    }
-  };
-
-  const handleGenreSelect = (genreId) => {
-    setSelectedGenre(genreId);
-  };
-
-  const handleSearchGenreSelect = (genreId) => {
-    setSearchGenre(genreId);
-    // Also apply the filter to the main content
-    setSelectedGenre(genreId);
-  };
-
-  const handleSearchCategorySelect = (categoryId) => {
-    setSearchCategory(categoryId);
-  };
-
-  const handleCategoryFilter = (category) => {
-    if (category.id === 'all') {
-      setSelectedCategory(null);
-      setSelectedGenre(null);
-    } else {
-      setSelectedCategory(category);
-      setSelectedGenre(null); // Clear genre filter when category is selected
     }
   };
 
