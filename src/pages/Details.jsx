@@ -34,12 +34,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
 import MovieCard from '../components/MovieCard';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { getMediaType, isAnimeItem } from '../utils/media';
 
 const Details = () => {
   const { mediaType, id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
   const { currentUser } = useAuth();
+  const resolvedMediaType = getMediaType({ media_type: mediaType }, mediaType);
   const [details, setDetails] = useState(null);
   const [credits, setCredits] = useState(null);
   const [videos, setVideos] = useState([]);
@@ -190,8 +192,8 @@ const Details = () => {
     const item = {
       id: details.id,
       title: details.title || details.name,
-      media_type: mediaType,
-      ...(mediaType === 'tv' && details.genres?.some((genre) => genre.id === 16)
+      media_type: resolvedMediaType,
+      ...(isAnimeItem(details, resolvedMediaType)
         ? { isAnime: true }
         : {}),
       runtime: totalRuntime,
@@ -265,8 +267,8 @@ const Details = () => {
     const item = {
       id: details.id,
       title: details.title || details.name,
-      media_type: mediaType,
-      ...(mediaType === 'tv' && details.genres?.some((genre) => genre.id === 16)
+      media_type: resolvedMediaType,
+      ...(isAnimeItem(details, resolvedMediaType)
         ? { isAnime: true }
         : {}),
       runtime: totalRuntime,
@@ -342,14 +344,14 @@ const Details = () => {
 
   if (!details) {
     return (
-      <div className="min-h-screen bg-background-darker flex items-center justify-center">
+      <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-3xl font-display font-bold text-white mb-4">
+          <h2 className="text-3xl font-sans font-bold text-fg mb-4">
             Details not found
           </h2>
           <button
             onClick={() => navigate('/')}
-            className="bg-gradient-purple text-white px-8 py-3 rounded-xl font-bold hover:shadow-purple transition-all transform hover:scale-105"
+            className="bg-brand text-on-brand px-8 py-3 rounded-md font-bold  transition-all transform hover:scale-105"
           >
             Go Home
           </button>
@@ -371,7 +373,7 @@ const Details = () => {
   const trailer = videos.find((v) => v.type === 'Trailer') || videos[0];
 
   return (
-    <div className="min-h-screen bg-background-darker animate-fade-in">
+    <div className="min-h-screen bg-bg animate-fade-in">
       {/* Backdrop Header with Gradient Overlay */}
       <div className="relative h-[50vh] md:h-[50vh] overflow-hidden">
         {/* Background Image */}
@@ -382,14 +384,12 @@ const Details = () => {
           }}
         />
         
-        {/* Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-t from-background-darker via-background-darker/70 to-background-darker/20"></div>
-        <div className="absolute inset-0 bg-gradient-to-b from-background-darker/80 via-transparent to-background-darker"></div>
+        <div className="absolute inset-0 bg-bg/70"></div>
         
         {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 md:top-6 md:left-6 bg-black/60 backdrop-blur-custom text-white px-4 py-2 md:px-6 md:py-3 rounded-lg md:rounded-xl hover:bg-black/80 transition-all font-semibold flex items-center gap-2 z-10 border border-white/20 text-sm md:text-base"
+          className="absolute top-4 left-4 md:top-6 md:left-6 bg-bg/60 backdrop-blur-custom text-fg px-4 py-2 md:px-6 md:py-3 rounded-md md:rounded-md hover:bg-bg/80 transition-all font-semibold flex items-center gap-2 z-10 border border-line/20 text-sm md:text-base"
         >
           ← Back
         </button>
@@ -403,7 +403,7 @@ const Details = () => {
                 <img
                   src={getImageUrl(details.poster_path, 'w500')}
                   alt={title}
-                  className="w-24 md:w-56 rounded-lg md:rounded-2xl shadow-2xl border-2 md:border-4 border-white/20"
+                  className="w-24 md:w-56 rounded-md md:rounded-md  border-2 md:border-4 border-line/20"
                   onError={(e) => {
                     e.currentTarget.onerror = null;
                     e.currentTarget.src = '/placeholder-image.svg';
@@ -413,12 +413,12 @@ const Details = () => {
 
               {/* Title and Meta */}
               <div className="flex-1 pb-1 md:pb-4">
-                <h1 className="text-lg md:text-5xl font-display font-bold text-white mb-1 md:mb-3 text-shadow-lg animate-slide-up leading-tight">
+                <h1 className="text-lg md:text-5xl font-sans font-bold text-fg mb-1 md:mb-3 text- animate-slide-up leading-tight">
                   {title}
                 </h1>
-                <div className="flex flex-wrap items-center gap-1.5 md:gap-4 mb-2 md:mb-4 text-text-muted text-xs md:text-base animate-slide-up">
+                <div className="flex flex-wrap items-center gap-1.5 md:gap-4 mb-2 md:mb-4 text-fg-muted text-xs md:text-base animate-slide-up">
                   {releaseDate && (
-                    <span className="text-white font-semibold">
+                    <span className="text-fg font-semibold">
                       {new Date(releaseDate).toLocaleDateString('en-US', { 
                         month: 'short', 
                         day: 'numeric', 
@@ -439,7 +439,7 @@ const Details = () => {
                   {details.vote_average > 0 && (
                     <>
                       <span>•</span>
-                      <span className="flex items-center gap-0.5 md:gap-1 text-accent-yellow font-bold">
+                      <span className="flex items-center gap-0.5 md:gap-1 text-rating font-bold">
                         <span>⭐</span>
                         <span>{details.vote_average.toFixed(1)}</span>
                       </span>
@@ -453,7 +453,7 @@ const Details = () => {
                     <a
                       key={genre.id}
                       href={`/genre/${genre.id}/${encodeURIComponent(genre.name)}`}
-                      className="bg-white/10 backdrop-blur-custom text-white px-2 py-0.5 md:px-4 md:py-2 rounded md:rounded-xl text-xs md:text-sm font-semibold border border-white/20 hover:bg-red-600 hover:border-red-600 transition-all cursor-pointer"
+                      className="bg-fg/10 backdrop-blur-custom text-fg px-2 py-0.5 md:px-4 md:py-2 rounded md:rounded-md text-xs md:text-sm font-semibold border border-line/20 hover:bg-brand hover:border-brand hover:text-on-brand transition-all cursor-pointer"
                     >
                       {genre.name}
                     </a>
@@ -472,7 +472,7 @@ const Details = () => {
           {!watched && !inWatchLater && (
             <button
               onClick={handleAddToWatchLater}
-              className="flex-1 md:flex-none bg-white hover:bg-gray-200 text-black px-6 py-3 md:px-8 md:py-4 rounded-lg md:rounded-xl text-sm md:text-base font-bold transition-all shadow-card hover:shadow-card-hover flex items-center justify-center gap-2"
+              className="flex-1 md:flex-none bg-fg hover:bg-fg-secondary text-on-brand px-6 py-3 md:px-8 md:py-4 rounded-md md:rounded-md text-sm md:text-base font-bold transition-all  flex items-center justify-center gap-2"
             >
               <span>Watch Later</span>
             </button>
@@ -480,7 +480,7 @@ const Details = () => {
           {inWatchLater && !watched && (
             <button
               onClick={handleRemoveFromWatchLater}
-              className="flex-1 md:flex-none bg-black hover:bg-gray-900 text-white border-2 border-white px-6 py-3 md:px-8 md:py-4 rounded-lg md:rounded-xl text-sm md:text-base font-bold transition-all duration-300 shadow-card hover:scale-105 flex items-center justify-center gap-2"
+              className="flex-1 md:flex-none bg-transparent hover:bg-danger/10 text-danger-text border border-danger px-6 py-3 md:px-8 md:py-4 rounded-md text-sm md:text-base font-bold transition-colors flex items-center justify-center gap-2"
             >
               <span>Remove</span>
             </button>
@@ -488,7 +488,7 @@ const Details = () => {
           {!watched && (
             <button
               onClick={handleMarkAsWatched}
-              className="flex-1 md:flex-none bg-red-600 hover:bg-red-700 text-white px-6 py-3 md:px-8 md:py-4 rounded-lg md:rounded-xl text-sm md:text-base font-bold transition-all shadow-card flex items-center justify-center gap-2"
+              className="flex-1 md:flex-none bg-brand hover:bg-brand-hover text-on-brand px-6 py-3 md:px-8 md:py-4 rounded-md md:rounded-md text-sm md:text-base font-bold transition-all  flex items-center justify-center gap-2"
             >
               <span>Watched</span>
             </button>
@@ -496,7 +496,7 @@ const Details = () => {
           {watched && (
             <button
               onClick={handleMarkAsWatched}
-              className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white px-6 py-3 md:px-8 md:py-4 rounded-lg md:rounded-xl text-sm md:text-base font-bold transition-all duration-300 shadow-green hover:shadow-lg hover:scale-105 flex items-center justify-center gap-2"
+              className="flex-1 md:flex-none bg-brand hover:bg-brand-hover text-on-brand px-6 py-3 md:px-8 md:py-4 rounded-md md:rounded-md text-sm md:text-base font-bold transition-all duration-300  hover:scale-105 flex items-center justify-center gap-2"
             >
               <span>✓ Watched</span>
             </button>
@@ -504,7 +504,7 @@ const Details = () => {
           {watched && (
             <button
               onClick={handleRateWatched}
-              className="flex-1 md:flex-none bg-yellow-500 hover:bg-yellow-400 text-black px-6 py-3 md:px-8 md:py-4 rounded-lg md:rounded-xl text-sm md:text-base font-bold transition-all"
+              className="flex-1 md:flex-none bg-brand hover:bg-rating text-on-brand px-6 py-3 md:px-8 md:py-4 rounded-md md:rounded-md text-sm md:text-base font-bold transition-all"
             >
               Rate
             </button>
@@ -512,22 +512,22 @@ const Details = () => {
         </div>
 
         {/* Overview */}
-        <div className="bg-card-darker rounded-xl md:rounded-2xl p-4 md:p-8 mb-6 md:mb-8 shadow-card border border-white/5 animate-slide-up">
-          <h2 className="text-lg md:text-2xl font-display font-bold text-white mb-3 md:mb-4">
+        <div className="bg-surface rounded-md md:rounded-md p-4 md:p-8 mb-6 md:mb-8  border border-line/5 animate-slide-up">
+          <h2 className="text-lg md:text-2xl font-sans font-bold text-fg mb-3 md:mb-4">
             Overview
           </h2>
-          <p className="text-text-muted leading-relaxed text-sm md:text-lg">
+          <p className="text-fg-muted leading-relaxed text-sm md:text-lg">
             {details.overview || 'No overview available.'}
           </p>
         </div>
 
         {/* Trailer */}
         {trailer && (
-          <div className="bg-card-darker rounded-xl md:rounded-2xl p-4 md:p-8 mb-6 md:mb-8 shadow-card border border-white/5 animate-slide-up">
-            <h2 className="text-lg md:text-2xl font-display font-bold text-white mb-4 md:mb-6">
+          <div className="bg-surface rounded-md md:rounded-md p-4 md:p-8 mb-6 md:mb-8  border border-line/5 animate-slide-up">
+            <h2 className="text-lg md:text-2xl font-sans font-bold text-fg mb-4 md:mb-6">
               Trailer
             </h2>
-            <div className="aspect-video rounded-lg md:rounded-xl overflow-hidden shadow-card-hover">
+            <div className="aspect-video rounded-md md:rounded-md overflow-hidden ">
               <iframe
                 width="100%"
                 height="100%"
@@ -536,7 +536,7 @@ const Details = () => {
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
-                className="rounded-lg md:rounded-xl"
+                className="rounded-md md:rounded-md"
               ></iframe>
             </div>
           </div>
@@ -544,39 +544,39 @@ const Details = () => {
 
         {/* Episode Tracking for TV Shows - Always visible */}
         {mediaType === 'tv' && seasons.length > 0 && (
-          <div ref={episodesRef} className="bg-card-darker rounded-xl md:rounded-2xl p-4 md:p-8 mb-6 md:mb-8 shadow-card border border-white/5 animate-slide-up">
-            <h2 className="text-lg md:text-2xl font-display font-bold text-white mb-4 md:mb-6">
+          <div ref={episodesRef} className="bg-surface rounded-md md:rounded-md p-4 md:p-8 mb-6 md:mb-8  border border-line/5 animate-slide-up">
+            <h2 className="text-lg md:text-2xl font-sans font-bold text-fg mb-4 md:mb-6">
               Episode Tracking
             </h2>
             <div className="space-y-4">
               {seasons.map((season) => {
                 const progress = getDisplayedSeasonProgress(season.season_number, season.episode_count);
                 return (
-                  <div key={season.id} className="bg-background-darker border border-white/10 rounded-xl p-4 hover:shadow-card-hover transition-all">
+                  <div key={season.id} className="bg-bg border border-line/10 rounded-md p-4  transition-all">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-bold text-white text-sm md:text-base">
+                      <h3 className="font-bold text-fg text-sm md:text-base">
                         {season.name}
                       </h3>
-                      <span className="text-xs text-text-muted font-semibold bg-card-dark px-2 py-1 rounded-full whitespace-nowrap">
+                      <span className="text-xs text-fg-muted font-semibold bg-surface px-2 py-1 rounded-full whitespace-nowrap">
                         {progress.watched}/{progress.total} ({progress.percentage}%)
                       </span>
                     </div>
-                    <div className="w-full bg-background-darker rounded-full h-2 mb-3 overflow-hidden">
+                    <div className="w-full bg-bg rounded-full h-2 mb-3 overflow-hidden">
                       <div
-                        className="bg-gradient-purple h-2 rounded-full transition-all duration-500 shadow-purple"
+                        className="bg-brand h-2 rounded-full transition-all duration-500 "
                         style={{ width: `${progress.percentage}%` }}
                       ></div>
                     </div>
                     <div className="flex gap-2 justify-between items-center">
                       <button
                         onClick={() => loadSeasonDetails(season.season_number)}
-                        className="text-accent-purple hover:text-accent-blue font-bold text-xs transition-colors flex items-center gap-1"
+                        className="text-brand hover:text-brand font-bold text-xs transition-colors flex items-center gap-1"
                       >
                         View Episodes →
                       </button>
                       <button
                         onClick={() => handleMarkSeasonWatched(season.season_number, season.episode_count)}
-                        className="bg-green-600/20 hover:bg-green-600/30 text-green-400 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-green-500/30 whitespace-nowrap"
+                        className="bg-brand/20 hover:bg-brand/30 text-brand px-3 py-1.5 rounded-md text-xs font-bold transition-all border border-brand/30 whitespace-nowrap"
                       >
                         ✓ Mark Watched
                       </button>
@@ -589,15 +589,15 @@ const Details = () => {
             {/* Episode List Modal */}
             {/* Episode List Modal */}
             {seasonDetails && (
-              <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                <div className="bg-card-darker rounded-xl max-w-2xl w-full max-h-[70vh] overflow-y-auto p-6 animate-scale-in shadow-card-hover border border-white/10">
-                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
-                    <h3 className="text-xl font-display font-bold text-white">
+              <div className="fixed inset-0 bg-bg/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                <div className="bg-surface rounded-md max-w-2xl w-full max-h-[70vh] overflow-y-auto p-6 animate-scale-in  border border-line/10">
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-line/10">
+                    <h3 className="text-xl font-sans font-bold text-fg">
                       {seasonDetails.name}
                     </h3>
                     <button
                       onClick={() => setSeasonDetails(null)}
-                      className="text-text-muted hover:text-white text-2xl transition-colors p-1"
+                      className="text-fg-muted hover:text-fg text-2xl transition-colors p-1"
                     >
                       ✕
                     </button>
@@ -608,22 +608,22 @@ const Details = () => {
                       return (
                         <div
                           key={episode.id}
-                          className={`border rounded-lg p-3 transition-all ${
+                          className={`border rounded-md p-3 transition-all ${
                             episodeWatched
-                              ? 'border-green-500/50 bg-green-600/10'
-                              : 'border-white/10 hover:border-accent-purple/50 bg-background-darker'
+                              ? 'border-brand/50 bg-brand/10'
+                              : 'border-line/10 hover:border-brand/50 bg-bg'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex-1 min-w-0">
-                              <h4 className="font-bold text-white text-sm mb-1 line-clamp-1">
+                              <h4 className="font-bold text-fg text-sm mb-1 line-clamp-1">
                                 {episode.episode_number}. {episode.name}
                               </h4>
-                              <p className="text-xs text-text-muted line-clamp-1">
+                              <p className="text-xs text-fg-muted line-clamp-1">
                                 {episode.overview || 'No description available.'}
                               </p>
                               {episode.runtime && (
-                                <p className="text-xs text-text-muted mt-1">
+                                <p className="text-xs text-fg-muted mt-1">
                                   ⏱ {episode.runtime} min
                                 </p>
                               )}
@@ -636,10 +636,10 @@ const Details = () => {
                                   episode.runtime || 0
                                 )
                               }
-                              className={`flex-shrink-0 px-3 py-2 rounded-lg font-bold text-xs transition-all ${
+                              className={`flex-shrink-0 px-3 py-2 rounded-md font-bold text-xs transition-all ${
                                 episodeWatched
-                                  ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-500/30'
-                                  : 'bg-card-dark text-white hover:bg-accent-purple'
+                                  ? 'bg-brand/20 text-brand hover:bg-brand/30 border border-brand/30'
+                                  : 'bg-surface text-fg hover:bg-brand hover:text-on-brand'
                               }`}
                             >
                               {episodeWatched ? '✓' : 'Mark'}
@@ -657,8 +657,8 @@ const Details = () => {
 
         {/* Cast */}
         {cast.length > 0 && (
-          <div className="bg-card-darker rounded-xl md:rounded-2xl p-4 md:p-8 mb-6 md:mb-8 shadow-card border border-white/5 animate-slide-up">
-            <h2 className="text-lg md:text-2xl font-display font-bold text-white mb-4 md:mb-6">
+          <div className="bg-surface rounded-md md:rounded-md p-4 md:p-8 mb-6 md:mb-8  border border-line/5 animate-slide-up">
+            <h2 className="text-lg md:text-2xl font-sans font-bold text-fg mb-4 md:mb-6">
               Cast
             </h2>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-6">
@@ -671,16 +671,16 @@ const Details = () => {
                   <img
                     src={getImageUrl(actor.profile_path, 'w185')}
                     alt={actor.name}
-                    className="w-full aspect-square object-cover rounded-lg md:rounded-2xl mb-2 md:mb-3 group-hover:scale-105 transition-transform shadow-card"
+                    className="w-full aspect-square object-cover rounded-md md:rounded-md mb-2 md:mb-3 group-hover:scale-105 transition-transform "
                     onError={(e) => {
                       e.currentTarget.onerror = null;
                       e.currentTarget.src = '/placeholder-image.svg';
                     }}
                   />
-                  <p className="font-bold text-xs md:text-sm text-white line-clamp-1 group-hover:text-red-600 transition-colors">
+                  <p className="font-bold text-xs md:text-sm text-fg line-clamp-1 group-hover:text-brand transition-colors">
                     {actor.name}
                   </p>
-                  <p className="text-xs md:text-xs text-text-muted mt-0.5 md:mt-1 line-clamp-1">
+                  <p className="text-xs md:text-xs text-fg-muted mt-0.5 md:mt-1 line-clamp-1">
                     {actor.character}
                   </p>
                 </a>
@@ -691,13 +691,13 @@ const Details = () => {
 
         {/* Similar Content */}
         {similar.length > 0 && (
-          <div className="bg-card-darker rounded-xl md:rounded-2xl p-4 md:p-8 mb-6 md:mb-8 shadow-card border border-white/5 animate-slide-up">
-            <h2 className="text-lg md:text-2xl font-display font-bold text-white mb-4 md:mb-6">
+          <div className="bg-surface rounded-md md:rounded-md p-4 md:p-8 mb-6 md:mb-8  border border-line/5 animate-slide-up">
+            <h2 className="text-lg md:text-2xl font-sans font-bold text-fg mb-4 md:mb-6">
               Similar {mediaType === 'movie' ? 'Movies' : 'TV Shows'}
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-6 gap-3 md:gap-6">
               {similar.map((item) => (
-                <MovieCard key={item.id} item={{ ...item, media_type: mediaType }} showType={false} />
+                <MovieCard key={item.id} item={{ ...item, media_type: getMediaType(item, resolvedMediaType) }} showType={false} />
               ))}
             </div>
           </div>

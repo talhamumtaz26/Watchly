@@ -24,8 +24,8 @@
   "start_url": ".",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "theme_color": "#000000",
-  "background_color": "#000000",
+  "theme_color": "#1A1917",
+  "background_color": "#1A1917",
   "categories": [
     "entertainment",
     "lifestyle"

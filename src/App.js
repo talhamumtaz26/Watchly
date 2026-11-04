@@ -11,7 +11,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import './App.css';
 import { Capacitor } from '@capacitor/core';
 import { SplashScreen } from '@capacitor/splash-screen';
-import OfflineNotice from './components/OfflineNotice';
+import { APP_NAME } from './config/app';
 
 // Lazy load all page components for better performance
 const Home = lazy(() => import('./pages/Home'));
@@ -79,6 +79,7 @@ function App() {
   useEffect(() => {
     // Force dark mode always
     document.documentElement.classList.add('dark');
+    document.title = `${APP_NAME} - Movie & TV Tracker`;
 
     setAppReady(true);
     // Reveal the rendered app shell; data loading remains visible in React.
@@ -91,8 +92,8 @@ function App() {
   // Show loading screen while app initializes
   if (!appReady) {
     return (
-      <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
-        <LoadingSpinner fullScreen={true} message="Loading Watchly..." />
+      <div className="fixed inset-0 bg-bg flex items-center justify-center z-50">
+        <LoadingSpinner fullScreen={true} message={`Loading ${APP_NAME}...`} />
       </div>
     );
   }
@@ -103,9 +104,8 @@ function App() {
         <Router>
           <ScrollToTop />
           <BackButtonHandler />
-          <div className="App safe-content min-h-screen bg-black transition-colors duration-200 pb-16 md:pb-0">
+          <div className="App safe-content min-h-screen bg-bg transition-colors duration-200 pb-16 md:pb-0">
             <Navbar />
-            <OfflineNotice />
             <BottomNav />
             <Suspense fallback={<LoadingSpinner fullScreen={true} message="Loading..." />}>
               <Routes>

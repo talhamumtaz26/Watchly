@@ -70,28 +70,28 @@ const Toast = ({ toast, onClose }) => {
   const { message, type } = toast;
 
   const typeStyles = {
-    success: 'bg-green-500 text-white',
-    error: 'bg-red-500 text-white',
-    warning: 'bg-yellow-500 text-white',
-    info: 'bg-black text-red-500 border border-red-600',
+    success: 'bg-brand text-on-brand',
+    error: 'bg-danger text-on-danger',
+    warning: 'bg-brand text-on-brand',
+    info: 'bg-surface text-brand border border-brand',
   };
 
   const icons = {
     success: '✓',
     error: '✕',
     warning: '⚠',
-    info: 'ℹ',
+    info: 'ⓘ',
   };
 
   return (
     <div
-      className={`${typeStyles[type]} px-6 py-4 rounded-lg shadow-2xl flex items-center space-x-3 min-w-[300px] max-w-md pointer-events-auto animate-slide-in-right`}
+      className={`${typeStyles[type]} px-6 py-4 rounded-md  flex items-center space-x-3 min-w-[300px] max-w-md pointer-events-auto animate-slide-in-right`}
     >
       <span className="text-2xl">{icons[type]}</span>
       <p className="flex-1 font-medium">{message}</p>
       <button
         onClick={onClose}
-        className="text-white hover:text-gray-200 transition-colors ml-2"
+        className="text-on-danger hover:text-fg-secondary transition-colors ml-2"
         aria-label="Close"
       >
         ✕

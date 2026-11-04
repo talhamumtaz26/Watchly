@@ -1,6 +1,7 @@
+import { getMediaType } from './media';
+
 const DEFAULT_TV_EPISODE_RUNTIME = 45;
 const DEFAULT_TV_EPISODE_COUNT = 10;
-
 export const normalizeMinutes = (value) => {
   const minutes = Number(value);
   return Number.isFinite(minutes) && minutes > 0 ? minutes : 0;
@@ -10,7 +11,7 @@ export const getItemRuntime = (item) => {
   const runtime = normalizeMinutes(item.runtime);
   if (runtime > 0) return runtime;
 
-  if (item.media_type === 'tv') {
+  if (getMediaType(item) === 'tv') {
     const episodeRuntime = normalizeMinutes(item.episode_run_time?.[0]) || DEFAULT_TV_EPISODE_RUNTIME;
     const episodeCount = normalizeMinutes(item.number_of_episodes)
       || (normalizeMinutes(item.number_of_seasons) * DEFAULT_TV_EPISODE_COUNT)

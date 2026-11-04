@@ -11,7 +11,7 @@ const MovieList = ({ title, items, loading = false, emptyMessage = 'No items to 
     return (
       <div className="mb-12 animate-fade-in">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl md:text-3xl font-display font-bold text-white flex items-center gap-3">
+          <h2 className="text-2xl md:text-3xl font-sans font-bold text-fg flex items-center gap-3">
             {icon && <span className="text-3xl md:text-4xl">{icon}</span>}
             {title}
           </h2>
@@ -20,7 +20,7 @@ const MovieList = ({ title, items, loading = false, emptyMessage = 'No items to 
               to={viewAllLink}
               aria-label={`View all ${title}`}
               title={`View all ${title}`}
-              className="flex items-center gap-2 text-red-600 hover:text-red-500 transition-colors font-semibold"
+              className="flex items-center gap-2 text-brand hover:text-brand-hover transition-colors font-semibold"
             >
               <FiArrowRight className="text-2xl" />
             </Link>
@@ -30,7 +30,7 @@ const MovieList = ({ title, items, loading = false, emptyMessage = 'No items to 
           {[...Array(limit || 12)].map((_, index) => (
             <div
               key={index}
-              className="animate-pulse bg-card-darker rounded-2xl aspect-[2/3] shadow-card"
+              className="animate-pulse bg-surface rounded-md aspect-[2/3] "
             />
           ))}
         </div>
@@ -42,20 +42,20 @@ const MovieList = ({ title, items, loading = false, emptyMessage = 'No items to 
     return (
       <div className="mb-12 animate-fade-in">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl md:text-3xl font-display font-bold text-white flex items-center gap-3">
+          <h2 className="text-2xl md:text-3xl font-sans font-bold text-fg flex items-center gap-3">
             {icon && <span className="text-3xl md:text-4xl">{icon}</span>}
             {title}
           </h2>
           {viewAllLink && (
             <Link 
               to={viewAllLink}
-              className="flex items-center gap-2 text-red-600 hover:text-red-500 transition-colors font-semibold"
+              className="flex items-center gap-2 text-brand hover:text-brand-hover transition-colors font-semibold"
             >
               <FiArrowRight className="text-2xl" />
             </Link>
           )}
         </div>
-        <div className="text-center py-16 text-text-muted bg-card-darker rounded-2xl shadow-card">
+        <div className="text-center py-16 text-fg-muted bg-surface rounded-md ">
           <div className="text-5xl mb-4">📭</div>
           <p className="text-lg">{emptyMessage}</p>
         </div>
@@ -66,14 +66,14 @@ const MovieList = ({ title, items, loading = false, emptyMessage = 'No items to 
   return (
     <div className="mb-12 animate-fade-in">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl md:text-3xl font-display font-bold text-white flex items-center gap-3">
+        <h2 className="text-2xl md:text-3xl font-sans font-bold text-fg flex items-center gap-3">
           {icon && <span className="text-3xl md:text-4xl">{icon}</span>}
           {title}
         </h2>
         {viewAllLink && (
           <Link 
             to={viewAllLink}
-            className="flex items-center gap-2 text-red-600 hover:text-red-500 transition-colors font-semibold"
+            className="flex items-center gap-2 text-brand hover:text-brand-hover transition-colors font-semibold"
           >
             <FiArrowRight className="text-2xl" />
           </Link>

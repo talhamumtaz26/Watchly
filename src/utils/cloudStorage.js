@@ -14,6 +14,7 @@ import {
   getWatchTimeStats,
 } from './watchStats';
 import { getDeletedItems } from './storage';
+import { mergeSyncedItems } from './syncMerge';
 
 // ============ Firestore Helper Functions ============
 
@@ -609,41 +610,47 @@ export const syncCloudToLocal = async (userId) => {
     const cloudWatched = watchedSnapshot.docs.map((itemDoc) => ({ ...itemDoc.data(), firestoreId: itemDoc.id }));
     const localWatchLater = getWatchLater(); 
     const localWatched = getWatched(); 
+    const deleted = getDeletedItems();
  
     let syncedCounts = { watchLater: 0, watched: 0 };
     const failures = [];
  
-    for (const cloudItem of cloudWatchLater) {
-      if (cloudItem.deleted) {
-        const localItem = localWatchLater.find(item => `${item.media_type}_${item.id}` === cloudItem.firestoreId);
-        if (localItem && timestampMillis(cloudItem.updatedAt) > timestampMillis(localItem.updatedAt)) {
-          removeFromWatchLaterLocal(localItem.id, localItem.media_type, false);
-          recordDeletedItem('watchLater', cloudItem.firestoreId, cloudItem.deletedAt || cloudItem.updatedAt);
+    const syncCollection = (
+      collectionName,
+      localItems,
+      cloudItems,
+      addLocal,
+      removeLocal,
+    ) => {
+      const mergedItems = mergeSyncedItems(localItems, cloudItems, deleted[collectionName]);
+      const mergedKeys = new Set(mergedItems.map((item) => `${item.media_type}_${item.id}`));
+
+      localItems.forEach((localItem) => {
+        const key = `${localItem.media_type}_${localItem.id}`;
+        if (!mergedKeys.has(key)) {
+          const deletion = cloudItems.find((item) => (item.firestoreId || `${item.media_type}_${item.id}`) === key);
+          removeLocal(localItem.id, localItem.media_type, false);
+          if (deletion) {
+            recordDeletedItem(
+              collectionName,
+              key,
+              deleted[collectionName]?.[key] || deletion.deletedAt || deletion.updatedAt
+            );
+          }
         }
-        continue;
-      }
-      const exists = localWatchLater.some(item => item.id === cloudItem.id && item.media_type === cloudItem.media_type); 
-      if (!exists || timestampMillis(cloudItem.updatedAt) > timestampMillis(localWatchLater.find(item => item.id === cloudItem.id && item.media_type === cloudItem.media_type)?.updatedAt)) {
-        addToWatchLaterLocal(cloudItem);
-        syncedCounts.watchLater++;
-      }
-    } 
- 
-    for (const cloudItem of cloudWatched) {
-      if (cloudItem.deleted) {
-        const localItem = localWatched.find(item => `${item.media_type}_${item.id}` === cloudItem.firestoreId);
-        if (localItem && timestampMillis(cloudItem.updatedAt) > timestampMillis(localItem.updatedAt)) {
-          removeFromWatchedLocal(localItem.id, localItem.media_type, false);
-          recordDeletedItem('watched', cloudItem.firestoreId, cloudItem.deletedAt || cloudItem.updatedAt);
+      });
+
+      mergedItems.forEach((mergedItem) => {
+        const localItem = localItems.find((item) => `${item.media_type}_${item.id}` === `${mergedItem.media_type}_${mergedItem.id}`);
+        if (!localItem || timestampMillis(mergedItem.updatedAt) > timestampMillis(localItem.updatedAt)) {
+          addLocal(mergedItem);
+          syncedCounts[collectionName]++;
         }
-        continue;
-      }
-      const exists = localWatched.some(item => item.id === cloudItem.id && item.media_type === cloudItem.media_type); 
-      if (!exists || timestampMillis(cloudItem.updatedAt) > timestampMillis(localWatched.find(item => item.id === cloudItem.id && item.media_type === cloudItem.media_type)?.updatedAt)) {
-        addToWatchedLocal(cloudItem);
-        syncedCounts.watched++;
-      }
-    } 
+      });
+    };
+
+    syncCollection('watchLater', localWatchLater, cloudWatchLater, addToWatchLaterLocal, removeFromWatchLaterLocal);
+    syncCollection('watched', localWatched, cloudWatched, addToWatchedLocal, removeFromWatchedLocal);
  
     return { success: failures.length === 0, counts: syncedCounts, failures };
   } catch (error) { 

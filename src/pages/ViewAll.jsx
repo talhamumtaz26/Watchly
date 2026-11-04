@@ -6,6 +6,7 @@ import MovieCard from '../components/MovieCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { FiArrowLeft } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
+import { getMediaType } from '../utils/media';
 
 const ViewAll = () => {
   const { type } = useParams(); // theatre, streaming, movies, tv, anime
@@ -38,7 +39,7 @@ const ViewAll = () => {
     });
     
     return items.filter(item => {
-      const itemType = item.media_type || mediaType;
+      const itemType = getMediaType(item, mediaType);
       const key = `${item.id}-${itemType}`;
       return !watchedMap.has(key);
     });
@@ -337,12 +338,12 @@ const ViewAll = () => {
 
   if (!config) {
     return (
-      <div className="min-h-screen bg-black px-4">
+      <div className="min-h-screen bg-bg px-4">
         <div className="container mx-auto text-center pt-6">
-          <h1 className="text-2xl text-white mb-4">Invalid page type</h1>
+          <h1 className="text-2xl text-fg mb-4">Invalid page type</h1>
           <button
             onClick={() => navigate('/')}
-            className="bg-gradient-red text-white px-6 py-3 rounded-xl font-bold"
+            className="bg-brand text-on-brand px-6 py-3 rounded-md font-bold"
           >
             Go Home
           </button>
@@ -356,19 +357,19 @@ const ViewAll = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black pb-20">
+    <div className="min-h-screen bg-bg pb-20">
       <div className="container mx-auto px-4 pt-6">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <button
             onClick={() => navigate('/')}
-            className="text-white hover:text-red-600 transition-colors"
+            className="text-fg hover:text-brand transition-colors"
             aria-label="Back to home"
             title="Back to home"
           >
             <FiArrowLeft className="text-3xl" />
           </button>
-          <h1 className="text-3xl md:text-4xl font-bold text-white">
+          <h1 className="text-3xl md:text-4xl font-bold text-fg">
             {config.title}
           </h1>
         </div>
@@ -379,28 +380,28 @@ const ViewAll = () => {
             // Add ref to the last item for infinite scroll
             if (items.length === index + 1) {
               return (
-                <div key={`${item.id}-${item.media_type || config.mediaType}`} ref={lastElementRef}>
-                  <MovieCard item={{ ...item, media_type: item.media_type || config.mediaType }} saveScrollOnClick={true} />
+                <div key={`${item.id}-${getMediaType(item, config.mediaType)}`} ref={lastElementRef}>
+                  <MovieCard item={{ ...item, media_type: getMediaType(item, config.mediaType) }} saveScrollOnClick={true} />
                 </div>
               );
             }
             return (
-              <MovieCard key={`${item.id}-${item.media_type || config.mediaType}`} item={{ ...item, media_type: item.media_type || config.mediaType }} saveScrollOnClick={true} />
+              <MovieCard key={`${item.id}-${getMediaType(item, config.mediaType)}`} item={{ ...item, media_type: getMediaType(item, config.mediaType) }} saveScrollOnClick={true} />
             );
           })}
         </div>
 
         {/* Loading Indicator */}
         {loadingMore && (
-          <div className="text-center mt-8 text-white">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+          <div className="text-center mt-8 text-fg">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
             <p className="mt-2">Loading more...</p>
           </div>
         )}
 
         {/* Empty State */}
         {items.length === 0 && !loading && (
-          <div className="text-center py-16 text-white">
+          <div className="text-center py-16 text-fg">
             <div className="text-5xl mb-4">📭</div>
             <p className="text-lg">No content available</p>
           </div>

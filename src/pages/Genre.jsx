@@ -93,30 +93,30 @@ const Genre = () => {
   const loadMore = activeTab === 'movies' ? loadMoreMovies : loadMoreTV;
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-bg">
       {/* Header */}
       <div className="container mx-auto px-4 py-6">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
+          className="flex items-center gap-2 text-fg-secondary hover:text-fg transition-colors mb-6"
         >
           <FiArrowLeft className="text-xl" />
           <span>Back</span>
         </button>
 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-white">
+          <h1 className="text-3xl md:text-4xl font-bold text-fg">
             {decodeURIComponent(name)} Genre
           </h1>
 
           {/* Tab Switcher */}
-          <div className="flex gap-2 bg-card-dark rounded-lg p-1">
+          <div className="flex gap-2 bg-surface rounded-md p-1">
             <button
               onClick={() => setActiveTab('movies')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-md font-semibold transition-colors ${
                 activeTab === 'movies'
-                  ? 'bg-red-600 text-white'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-brand text-on-brand'
+                  : 'text-fg-secondary hover:text-fg'
               }`}
             >
               <FiFilm />
@@ -124,10 +124,10 @@ const Genre = () => {
             </button>
             <button
               onClick={() => setActiveTab('tv')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-md font-semibold transition-colors ${
                 activeTab === 'tv'
-                  ? 'bg-red-600 text-white'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-brand text-on-brand'
+                  : 'text-fg-secondary hover:text-fg'
               }`}
             >
               <FiTv />
@@ -156,24 +156,24 @@ const Genre = () => {
                       <img
                         src={getImageUrl(item.poster_path, 'w500')}
                         alt={title}
-                        className="w-full rounded-lg shadow-lg group-hover:scale-105 transition-transform"
+                        className="w-full rounded-md  group-hover:scale-105 transition-transform"
                         onError={(e) => {
                           e.currentTarget.onerror = null;
                           e.currentTarget.src = '/placeholder-image.svg';
                         }}
                       />
                       {item.vote_average > 0 && (
-                        <div className="absolute top-2 right-2 bg-black/95 text-yellow-500 px-2 py-1 rounded-lg text-xs font-bold">
+                        <div className="absolute top-2 right-2 bg-bg/95 text-brand px-2 py-1 rounded-md text-xs font-bold">
                           ⭐ {item.vote_average.toFixed(1)}
                         </div>
                       )}
                     </div>
-                    <h3 className="text-white font-semibold mt-2 line-clamp-2 group-hover:text-red-600 transition-colors">
+                    <h3 className="text-fg font-semibold mt-2 line-clamp-2 group-hover:text-brand transition-colors">
                       {title}
                     </h3>
-                    <p className="text-gray-400 text-sm mt-1">
+                    <p className="text-fg-secondary text-sm mt-1">
                       {year && `${year} • `}
-                      <span className="text-red-600">{activeTab === 'movies' ? 'Movie' : 'TV Show'}</span>
+                      <span className="text-fg-secondary">{activeTab === 'movies' ? 'Movie' : 'Series'}</span>
                     </p>
                   </div>
                 );
@@ -186,7 +186,7 @@ const Genre = () => {
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-brand hover:bg-brand-hover text-on-brand px-8 py-3 rounded-md font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loadingMore ? 'Loading...' : `Load More ${activeTab === 'movies' ? 'Movies' : 'TV Shows'}`}
                 </button>
@@ -195,10 +195,10 @@ const Genre = () => {
           </>
         ) : (
           <div className="text-center py-20">
-            <h2 className="text-2xl font-bold text-white mb-2">
+            <h2 className="text-2xl font-bold text-fg mb-2">
               No {activeTab === 'movies' ? 'movies' : 'TV shows'} found
             </h2>
-            <p className="text-gray-400">
+            <p className="text-fg-secondary">
               Try switching to {activeTab === 'movies' ? 'TV shows' : 'movies'}
             </p>
           </div>

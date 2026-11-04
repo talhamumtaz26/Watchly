@@ -9,7 +9,7 @@ const ProtectedRoute = ({ children }) => {
     return (
       <div className="min-h-screen bg-background-darker flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-accent-purple mb-4"></div>
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-brand mb-4"></div>
           <p className="text-white text-xl font-semibold">Loading...</p>
         </div>
       </div>

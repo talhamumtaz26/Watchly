@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -22,8 +23,8 @@ const Login = () => {
 
   if (loading || currentUser) {
     return (
-      <div className="fixed inset-0 bg-background-darker flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-500" />
+      <div className="fixed inset-0 bg-bg flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-hover" />
       </div>
     );
   }
@@ -107,34 +108,29 @@ const Login = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-background-darker flex items-center justify-center px-4 overflow-hidden">
-      {/* Decorative Background Elements */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-accent-purple/20 rounded-full blur-3xl -ml-48 -mt-48"></div>
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-accent-blue/20 rounded-full blur-3xl -mr-48 -mb-48"></div>
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent-pink/10 rounded-full blur-3xl"></div>
-
+    <div className="fixed inset-0 bg-bg flex items-center justify-center px-4 overflow-hidden">
       <div className="relative z-10 w-full max-w-md">
 
         {/* Auth Card */}
-        <div className="bg-card-darker rounded-2xl shadow-card-hover border border-white/10 p-8 backdrop-blur-custom animate-slide-up">
+        <div className="bg-surface rounded-md  border border-line/10 p-8 backdrop-blur-custom animate-slide-up">
           {/* Toggle Tabs */}
-          <div className="flex gap-2 mb-6 bg-card-dark rounded-xl p-1">
+          <div className="flex gap-2 mb-6 bg-surface rounded-md p-1">
             <button
               onClick={() => setIsSignUp(false)}
-              className={`flex-1 py-3 rounded-lg font-bold transition-all ${
+              className={`flex-1 py-3 rounded-md font-bold transition-all ${
                 !isSignUp
-                  ? 'bg-gradient-red text-white shadow-red'
-                  : 'text-text-muted hover:text-white'
+                  ? 'bg-brand text-on-brand'
+                  : 'text-fg-muted hover:text-fg'
               }`}
             >
               Login
             </button>
             <button
               onClick={() => setIsSignUp(true)}
-              className={`flex-1 py-3 rounded-lg font-bold transition-all ${
+              className={`flex-1 py-3 rounded-md font-bold transition-all ${
                 isSignUp
-                  ? 'bg-gradient-red text-white shadow-red'
-                  : 'text-text-muted hover:text-white'
+                  ? 'bg-brand text-on-brand'
+                  : 'text-fg-muted hover:text-fg'
               }`}
             >
               Sign Up
@@ -144,7 +140,7 @@ const Login = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-semibold text-white mb-2">
+              <label className="block text-sm font-semibold text-fg mb-2">
                 Email Address
               </label>
               <input
@@ -152,39 +148,43 @@ const Login = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full px-4 py-3 bg-card-dark border border-white/10 rounded-xl text-white placeholder-text-muted focus:border-accent-purple focus:outline-none focus:ring-2 focus:ring-accent-purple/20 transition-all"
+                className="w-full px-4 py-3 bg-surface border border-line/10 rounded-md text-fg placeholder-fg-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all"
                 disabled={submitting}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-white mb-2">
+              <label className="block text-sm font-semibold text-fg mb-2">
                 Password
               </label>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-4 py-3 bg-card-dark border border-white/10 rounded-xl text-white placeholder-text-muted focus:border-accent-purple focus:outline-none focus:ring-2 focus:ring-accent-purple/20 transition-all"
-                disabled={submitting}
-              />
-              <div className="flex items-center justify-between mt-1">
-                {isSignUp ? (
-                  <p className="text-xs text-text-muted">Minimum 6 characters</p>
-                ) : <span />}
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3 pr-14 bg-surface border border-line/10 rounded-md text-fg placeholder-fg-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all"
+                  disabled={submitting}
+                />
                 <button
                   type="button"
                   onClick={() => setShowPassword((value) => !value)}
-                  className="text-xs text-red-400 hover:text-red-300 min-h-8 px-1"
+                  className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-md text-fg-secondary hover:text-brand"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
                 >
-                  {showPassword ? 'Hide password' : 'Show password'}
+                  {showPassword ? <FiEyeOff aria-hidden="true" /> : <FiEye aria-hidden="true" />}
                 </button>
+              </div>
+              <div className="flex items-center justify-end mt-1">
+                {isSignUp ? (
+                  <p className="text-xs text-fg-muted">Minimum 6 characters</p>
+                ) : null}
               </div>
             </div>
 
             {errorMessage && (
-              <p role="alert" className="rounded-lg border border-red-500/50 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+              <p role="alert" className="rounded-md border border-danger/50 bg-danger/10 px-3 py-2 text-sm text-danger-text">
                 {errorMessage}
               </p>
             )}
@@ -193,7 +193,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={handleForgotPassword}
-                className="text-sm text-red-400 hover:text-red-300 min-h-8"
+                className="flex min-h-11 w-full items-center justify-end text-sm text-brand hover:text-brand-hover"
               >
                 Forgot password?
               </button>
@@ -202,7 +202,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-gradient-red text-white font-bold py-3 rounded-xl hover:shadow-red transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-brand text-on-brand font-bold py-3 rounded-md hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? (
                 <span className="flex items-center justify-center gap-2">

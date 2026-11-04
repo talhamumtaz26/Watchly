@@ -5,6 +5,7 @@ import { syncBidirectional, clearCloudData } from '../utils/cloudStorage';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
 import { FiArrowLeft, FiCloud, FiCheck } from 'react-icons/fi';
+import { APP_NAME } from '../config/app';
 
 const AppSettings = () => {
   const [showConfirm, setShowConfirm] = useState(false);
@@ -143,12 +144,12 @@ const AppSettings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-bg">
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
+          className="flex items-center gap-2 text-fg-secondary hover:text-fg transition-colors mb-6"
         >
           <FiArrowLeft className="text-xl" />
           <span>Back</span>
@@ -156,10 +157,10 @@ const AppSettings = () => {
 
         {/* Header */}
         <div className="mb-6 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">
+          <h1 className="text-3xl md:text-4xl font-bold text-fg mb-1">
             App Settings
           </h1>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-fg-secondary">
             Manage preferences and data
           </p>
         </div>
@@ -167,16 +168,16 @@ const AppSettings = () => {
         {/* Settings Sections */}
         <div className="space-y-4">
           {/* Preferences */}
-          <div className="bg-card-dark rounded-xl p-5 shadow-md border border-gray-800">
-            <h2 className="text-lg font-bold text-white mb-4">Preferences</h2>
+          <div className="bg-surface rounded-md p-5  border border-line">
+            <h2 className="text-lg font-bold text-fg mb-4">Preferences</h2>
             
             {/* Hide Watched Toggle */}
             <div className="flex items-center justify-between py-2">
               <div className="flex-1">
-                <p className="font-semibold text-sm text-white">
+                <p className="font-semibold text-sm text-fg">
                   Hide Watched on Home
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-fg-secondary">
                   Hide watched movies from home page
                 </p>
               </div>
@@ -185,12 +186,12 @@ const AppSettings = () => {
                 <button
                   onClick={handleToggleHideWatched}
                   className={`relative w-12 h-6 rounded-full transition-all duration-300 ${
-                    hideWatchedFromHome ? 'bg-white' : 'bg-black border-2 border-gray-600'
+                    hideWatchedFromHome ? 'bg-fg' : 'bg-bg border-2 border-fg-muted'
                   }`}
                 >
                   <div
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full shadow-md transform transition-transform duration-300 ${
-                      hideWatchedFromHome ? 'bg-red-600 translate-x-6' : 'bg-white translate-x-0'
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full  transform transition-transform duration-300 ${
+                      hideWatchedFromHome ? 'bg-brand translate-x-6' : 'bg-fg translate-x-0'
                     }`}
                   />
                 </button>
@@ -200,8 +201,8 @@ const AppSettings = () => {
 
           {/* Cloud Sync */}
           {currentUser && (
-            <div className="bg-card-dark rounded-xl p-5 shadow-md border border-gray-800">
-              <h2 className="text-lg font-bold text-white mb-4">
+            <div className="bg-surface rounded-md p-5  border border-line">
+              <h2 className="text-lg font-bold text-fg mb-4">
                 Cloud Sync
               </h2>
               
@@ -209,18 +210,18 @@ const AppSettings = () => {
                 {/* Manual Sync */}
                 <div className="flex items-center justify-between py-2">
                   <div className="flex-1 pr-4">
-                    <p className="font-semibold text-sm text-white">Sync with Cloud Firestore</p>
-                    <p className="text-xs text-gray-400">Sync data between device and cloud</p>
+                    <p className="font-semibold text-sm text-fg">Sync with Cloud Firestore</p>
+                    <p className="text-xs text-fg-secondary">Sync data between device and cloud</p>
                   </div>
                   <button
                     onClick={handleSyncToCloud}
                     disabled={syncing}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex-shrink-0 flex items-center gap-2 ${
+                    className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors flex-shrink-0 flex items-center gap-2 ${
                       synced 
-                        ? 'bg-green-600 text-white cursor-default' 
+                        ? 'bg-brand text-on-brand cursor-default'
                         : syncing 
-                        ? 'bg-gray-600 text-white cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        ? 'bg-fg-muted text-fg cursor-not-allowed'
+                        : 'bg-brand hover:bg-brand-hover text-on-brand'
                     }`}
                   >
                     {syncing ? (
@@ -246,26 +247,26 @@ const AppSettings = () => {
                 </div>
                 
                 {syncSummary && (
-                  <div className="bg-black border border-red-600/50 rounded-lg p-3 mb-3">
-                    <p className="text-xs text-red-400">
+                  <div className="bg-bg border border-brand/50 rounded-md p-3 mb-3">
+                    <p className="text-xs text-danger-text">
                       Uploaded: {syncSummary.uploaded.watchLater} Watch Later, {syncSummary.uploaded.watched} Watched
                     </p>
-                    <p className="text-xs text-red-400">
+                    <p className="text-xs text-danger-text">
                       Downloaded: {syncSummary.downloaded.watchLater} Watch Later, {syncSummary.downloaded.watched} Watched
                     </p>
                     {syncSummary.failures?.length > 0 && (
-                      <p className="text-xs text-red-300 mt-1">
+                      <p className="text-xs text-danger-text mt-1">
                         Failed: {syncSummary.failures.join('; ')}
                       </p>
                     )}
                   </div>
                 )}
 
-                <div className="bg-blue-900/20 border border-blue-800/30 rounded-lg p-3">
-                  <p className="text-xs text-blue-300">
+                <div className="bg-surface border border-line rounded-md p-3">
+                  <p className="text-xs text-fg-secondary">
                     <strong>Logged in as:</strong> {currentUser.email}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-fg-secondary mt-1">
                     Sync your local library with Cloud Firestore. Local-only items upload, cloud-only items download, and nothing is automatically deleted.
                   </p>
                 </div>
@@ -274,8 +275,8 @@ const AppSettings = () => {
           )}
 
           {/* Data Management */}
-          <div className="bg-card-dark rounded-xl p-5 shadow-md border border-gray-800">
-            <h2 className="text-lg font-bold text-white mb-4">
+          <div className="bg-surface rounded-md p-5  border border-line">
+            <h2 className="text-lg font-bold text-fg mb-4">
               Data Management
             </h2>
             
@@ -283,24 +284,24 @@ const AppSettings = () => {
               {/* Export Data */}
               <div className="flex items-center justify-between py-2">
                 <div className="flex-1 pr-4">
-                  <p className="font-semibold text-sm text-white">Export Data</p>
-                  <p className="text-xs text-gray-400">Download backup</p>
+                  <p className="font-semibold text-sm text-fg">Export Data</p>
+                  <p className="text-xs text-fg-secondary">Download backup</p>
                 </div>
                 <button
                   onClick={handleExportData}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex-shrink-0"
+                  className="bg-brand hover:bg-brand-hover text-on-brand px-4 py-2 rounded-md text-sm font-semibold transition-colors flex-shrink-0"
                 >
                   Export
                 </button>
               </div>
 
               {/* Import Data */}
-              <div className="flex items-center justify-between py-2 border-t border-gray-800">
+              <div className="flex items-center justify-between py-2 border-t border-line">
                 <div className="flex-1 pr-4">
-                  <p className="font-semibold text-sm text-white">Import Data</p>
-                  <p className="text-xs text-gray-400">Restore from backup</p>
+                  <p className="font-semibold text-sm text-fg">Import Data</p>
+                  <p className="text-xs text-fg-secondary">Restore from backup</p>
                 </div>
-                <label className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer flex-shrink-0">
+                <label className="bg-brand hover:bg-brand-hover text-on-brand px-4 py-2 rounded-md text-sm font-semibold transition-colors cursor-pointer flex-shrink-0">
                   Import
                   <input
                     type="file"
@@ -312,10 +313,10 @@ const AppSettings = () => {
               </div>
 
               {/* Clear Data */}
-              <div className="flex items-center justify-between py-2 border-t border-gray-800">
+              <div className="flex items-center justify-between py-2 border-t border-line">
                 <div className="flex-1 pr-4">
-                  <p className="font-semibold text-sm text-white">Clear All Data</p>
-                  <p className="text-xs text-gray-400">Remove all local data. This cannot be undone.</p>
+                  <p className="font-semibold text-sm text-fg">Clear All Data</p>
+                  <p className="text-xs text-fg-secondary">Remove all local data. This cannot be undone.</p>
                 </div>
                 {showConfirm ? (
                   <div className="flex flex-col items-end gap-2">
@@ -324,12 +325,12 @@ const AppSettings = () => {
                       onChange={(event) => setConfirmText(event.target.value)}
                       placeholder="Type CLEAR ALL"
                       aria-label="Type CLEAR ALL to confirm"
-                      className="w-36 rounded-lg border border-red-500 bg-black px-2 py-2 text-xs text-white"
+                      className="w-36 rounded-md border border-brand-hover bg-bg px-2 py-2 text-xs text-fg"
                     />
                     <button
                       onClick={handleClearData}
                       disabled={confirmText !== 'CLEAR ALL'}
-                      className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-700 hover:bg-red-800 text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      className="px-4 py-2 rounded-md text-sm font-semibold bg-danger hover:bg-danger text-on-danger disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Permanently Clear
                     </button>
@@ -337,7 +338,7 @@ const AppSettings = () => {
                 ) : (
                   <button
                     onClick={() => setShowConfirm(true)}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-600 hover:bg-red-700 text-white"
+                    className="px-4 py-2 rounded-md text-sm font-semibold border border-danger text-danger-text hover:bg-danger/10"
                   >
                     Clear
                   </button>
@@ -347,17 +348,17 @@ const AppSettings = () => {
           </div>
 
           {/* About */}
-          <div className="bg-card-dark rounded-xl p-5 shadow-md border border-gray-800">
-            <h2 className="text-lg font-bold text-white mb-4">
-              About
+          <div className="bg-surface rounded-md p-5  border border-line">
+            <h2 className="text-lg font-bold text-fg mb-4">
+              About {APP_NAME}
             </h2>
-            <div className="grid grid-cols-3 gap-3 text-sm text-gray-300">
+            <div className="grid grid-cols-3 gap-3 text-sm text-fg-secondary">
               <div>
-                <p className="text-xs text-gray-400">Version</p>
+                <p className="text-xs text-fg-secondary">Version</p>
                 <p className="font-semibold">1.0.0</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400">Author</p>
+                <p className="text-xs text-fg-secondary">Author</p>
                 <p className="font-semibold">Talha Mumtaz</p>
               </div>
 
