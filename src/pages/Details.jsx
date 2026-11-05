@@ -389,7 +389,7 @@ const Details = () => {
         {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 md:top-6 md:left-6 bg-bg/60 backdrop-blur-custom text-fg px-4 py-2 md:px-6 md:py-3 rounded-md md:rounded-md hover:bg-bg/80 transition-all font-semibold flex items-center gap-2 z-10 border border-line/20 text-sm md:text-base"
+          className="absolute top-4 left-4 md:top-6 md:left-6 bg-bg/60 text-fg px-4 py-2 md:px-6 md:py-3 rounded-md md:rounded-md hover:bg-bg/80 transition-all font-semibold flex items-center gap-2 z-10 border border-line/20 text-sm md:text-base"
         >
           ← Back
         </button>
@@ -453,7 +453,7 @@ const Details = () => {
                     <a
                       key={genre.id}
                       href={`/genre/${genre.id}/${encodeURIComponent(genre.name)}`}
-                      className="bg-fg/10 backdrop-blur-custom text-fg px-2 py-0.5 md:px-4 md:py-2 rounded md:rounded-md text-xs md:text-sm font-semibold border border-line/20 hover:bg-brand hover:border-brand hover:text-on-brand transition-all cursor-pointer"
+                      className="bg-fg/10 text-fg px-2 py-0.5 md:px-4 md:py-2 rounded md:rounded-md text-xs md:text-sm font-semibold border border-line/20 hover:bg-brand hover:border-brand hover:text-on-brand transition-all cursor-pointer"
                     >
                       {genre.name}
                     </a>
@@ -589,7 +589,7 @@ const Details = () => {
             {/* Episode List Modal */}
             {/* Episode List Modal */}
             {seasonDetails && (
-              <div className="fixed inset-0 bg-bg/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+              <div className="fixed inset-0 bg-bg/90 z-50 flex items-center justify-center p-4 animate-fade-in">
                 <div className="bg-surface rounded-md max-w-2xl w-full max-h-[70vh] overflow-y-auto p-6 animate-scale-in  border border-line/10">
                   <div className="flex items-center justify-between mb-4 pb-3 border-b border-line/10">
                     <h3 className="text-xl font-sans font-bold text-fg">

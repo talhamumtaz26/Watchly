@@ -1,45 +1,82 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { FiHome, FiClock, FiBookmark, FiCheckCircle, FiUser } from 'react-icons/fi';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { getActiveTab, navItems } from '../config/navItems';
 
 const BottomNav = () => {
   const location = useLocation();
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
-  const navItems = [
-    { path: '/', label: 'Home', icon: FiHome },
-    { path: '/upcoming', label: 'Upcoming', icon: FiClock },
-    { path: '/watch-later', label: 'Watch Later', icon: FiBookmark },
-    { path: '/watched', label: 'Watched', icon: FiCheckCircle },
-    { path: '/settings', label: 'Settings', icon: FiUser },
-  ];
+  useEffect(() => {
+    let showTimer;
+    const hideForKeyboard = () => {
+      window.clearTimeout(showTimer);
+      setKeyboardOpen(true);
+    };
+    const showAfterKeyboard = () => {
+      window.clearTimeout(showTimer);
+      showTimer = window.setTimeout(() => {
+        const activeElement = document.activeElement;
+        if (!activeElement?.matches('input, textarea, select')) {
+          setKeyboardOpen(false);
+        }
+      }, 200);
+    };
+    const handleFocusIn = (event) => {
+      if (event.target.matches('input, textarea, select')) hideForKeyboard();
+    };
+    const handleViewportResize = () => {
+      const viewport = window.visualViewport;
+      if (!viewport) return;
+      setKeyboardOpen(window.innerHeight - viewport.height > 150);
+    };
 
-  const isActive = (path) => {
-    return location.pathname === path;
-  };
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', showAfterKeyboard);
+    window.visualViewport?.addEventListener('resize', handleViewportResize);
+
+    return () => {
+      window.clearTimeout(showTimer);
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', showAfterKeyboard);
+      window.visualViewport?.removeEventListener('resize', handleViewportResize);
+    };
+  }, []);
+
+  const activeTab = getActiveTab(location.pathname);
 
   return (
-    <nav aria-label="Mobile navigation" className="fixed bottom-0 left-0 right-0 bg-bg border-t border-line z-50 md:hidden">
-      <div className="flex items-center justify-around h-16">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item.path);
-          
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              aria-current={active ? 'page' : undefined}
-              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-                active ? 'text-brand' : 'text-fg-secondary'
-              }`}
-            >
-              <Icon className={`text-xl mb-1 ${active ? 'text-brand' : 'text-fg-secondary'}`} />
-              <span className="text-xs font-medium">{item.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+    <>
+      <div className="bottom-nav-fade fixed inset-x-0 bottom-0 z-40 h-[140px] md:hidden" aria-hidden="true" />
+      <nav
+        aria-label="Primary"
+        aria-hidden={keyboardOpen}
+        className={`glass glass-nav fixed left-5 right-5 bottom-3 mx-auto h-[60px] max-w-[400px] rounded-[28px] z-50 md:hidden transition-[transform,opacity] duration-150 ${
+          keyboardOpen ? 'translate-y-6 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+        } motion-reduce:transition-none`}
+      >
+        <div className="flex items-center justify-around h-full">
+          {navItems.map((item) => {
+            const Icon = item.Icon;
+            const active = activeTab === item.key;
+
+            return (
+              <NavLink
+                key={item.key}
+                to={item.path}
+                aria-current={active ? 'page' : undefined}
+                className={`relative flex items-center justify-center min-w-12 min-h-12 flex-1 rounded-md focus-visible:outline-2 focus-visible:outline-brand focus-visible:outline-offset-2 transition-colors duration-[150ms] ${
+                  active ? 'text-brand' : 'text-fg-secondary'
+                } motion-reduce:transition-none`}
+              >
+                <span className="sr-only">{item.label}</span>
+                {active && <span aria-hidden="true" className="absolute top-0 h-[3px] w-4 rounded-full bg-brand" />}
+                <Icon size={24} weight={active ? 'fill' : 'regular'} aria-hidden="true" />
+              </NavLink>
+            );
+          })}
+        </div>
+      </nav>
+    </>
   );
 };
 

@@ -8,7 +8,7 @@ The app is dark-only. The full `buttercup` and `makara` scales live in
 | Token | Value | Use |
 | --- | --- | --- |
 | `bg` | `#1A1917` | Page background |
-| `surface` | `#272320` | Cards, inputs, navigation |
+| `surface` | `#272320` | Cards and inputs |
 | `line` | `#45403C` | Borders and dividers |
 | `fg` | `#F3F3F1` | Primary text |
 | `fg-secondary` | `#ADA79B` | Secondary text |
@@ -49,3 +49,29 @@ semibold, body text is 15px regular with 1.5 line-height, and metadata is
   tokens. Rating bars use buttercup shades and neutral for the lowest tier.
 - The page, header, and bottom navigation use flat background/surface colors;
   gradients and colored glows are not used.
+
+## Glass
+
+The glass tokens and reusable `.glass` utility are defined in
+[`src/index.css`](./src/index.css) and exposed through the Tailwind theme.
+Glass is limited to the bottom navigation and the sticky top header. It uses
+the `--glass-bg`, `--glass-bg-nav`, `--glass-bg-solid`, `--glass-border`,
+`--glass-highlight`, `--glass-blur`, and `--glass-shadow` tokens. Neutral black
+shadows are allowed for floating glass elements. The only gradient allowed is
+the bottom fade behind the mobile navigation.
+
+## Navigation
+
+- Mobile navigation is a floating, icons-only glass bar below the `md`
+  breakpoint: it is 60px tall, has 20px side margins, a 12px bottom offset, a
+  400px maximum width, a 28px full-pill radius, and the nav glass background.
+- Mobile tabs use House, CalendarBlank, BookmarksSimple, SealCheck, and
+  UserCircle icons at 24px. Inactive icons are regular weight and use
+  `fg-secondary`; the active icon is filled and the 16px by 3px top indicator
+  uses `brand`. Each tab has a 48px minimum tap
+  area and a screen-reader-only label.
+- The mobile bar hides while the on-screen keyboard is open. The app wrapper
+  reserves 92px of mobile bottom space so page content clears the floating bar.
+- Desktop navigation is a text-only menu using Sora medium at 15px. Links use
+  `fg-secondary`, active links use `brand` with a 2px underline, and the
+  wordmark and search control remain in the header.

@@ -112,7 +112,7 @@ const Login = () => {
       <div className="relative z-10 w-full max-w-md">
 
         {/* Auth Card */}
-        <div className="bg-surface rounded-md  border border-line/10 p-8 backdrop-blur-custom animate-slide-up">
+        <div className="bg-surface rounded-md  border border-line/10 p-8 animate-slide-up">
           {/* Toggle Tabs */}
           <div className="flex gap-2 mb-6 bg-surface rounded-md p-1">
             <button

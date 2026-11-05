@@ -1,12 +1,14 @@
 import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { FiSearch, FiX } from 'react-icons/fi';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { MagnifyingGlass, X } from '@phosphor-icons/react';
 import Wordmark from './Wordmark';
+import { getActiveTab, navItems } from '../config/navItems';
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isSearchPage = location.pathname === '/search';
+  const activeTab = getActiveTab(location.pathname);
 
   const handleSearchClick = () => {
     if (isSearchPage) {
@@ -17,7 +19,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav aria-label="Main navigation" className="bg-bg sticky top-0 z-40 border-b border-line">
+    <nav aria-label="Main navigation" className="glass glass-nav sticky top-0 z-40">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center group">
@@ -26,36 +28,21 @@ const Navbar = () => {
 
           {/* Desktop Navigation Links */}
           <div className="hidden md:flex items-center space-x-3 lg:space-x-6">
-            <Link 
-              to="/" 
-              className="text-fg hover:text-brand font-semibold transition-colors"
-            >
-              <span className="text-sm lg:text-base whitespace-nowrap">Home</span>
-            </Link>
-            <Link 
-              to="/upcoming" 
-              className="text-fg hover:text-brand font-semibold transition-colors"
-            >
-              <span className="text-sm lg:text-base whitespace-nowrap">Upcoming</span>
-            </Link>
-            <Link 
-              to="/watch-later" 
-              className="text-fg hover:text-brand font-semibold transition-colors"
-            >
-              <span className="text-sm lg:text-base whitespace-nowrap">Watch Later</span>
-            </Link>
-            <Link 
-              to="/watched" 
-              className="text-fg hover:text-brand font-semibold transition-colors"
-            >
-              <span className="text-sm lg:text-base whitespace-nowrap">Watched</span>
-            </Link>
-            <Link 
-              to="/settings" 
-              className="text-fg hover:text-brand font-semibold transition-colors"
-            >
-              <span className="text-sm lg:text-base whitespace-nowrap">Settings</span>
-            </Link>
+            {navItems.map((item) => (
+              <NavLink
+                key={item.key}
+                to={item.path}
+                end={item.path === '/'}
+                aria-current={activeTab === item.key ? 'page' : undefined}
+                className={`relative py-2 text-[15px] font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-brand focus-visible:outline-offset-2 ${
+                  activeTab === item.key
+                    ? 'text-brand after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:bg-brand'
+                    : 'text-fg-secondary hover:text-fg'
+                }`}
+              >
+                {item.label}
+              </NavLink>
+            ))}
           </div>
 
           {/* Search Icon / Close Button */}
@@ -66,9 +53,9 @@ const Navbar = () => {
             title={isSearchPage ? 'Close search' : 'Open search'}
           >
             {isSearchPage ? (
-              <FiX className="text-2xl" />
+              <X size={24} weight="regular" aria-hidden="true" />
             ) : (
-              <FiSearch className="text-2xl" />
+              <MagnifyingGlass size={24} weight="regular" aria-hidden="true" />
             )}
           </button>
         </div>

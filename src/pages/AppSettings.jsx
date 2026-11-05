@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
 import { FiArrowLeft, FiCloud, FiCheck } from 'react-icons/fi';
 import { APP_NAME } from '../config/app';
+import { useAppearancePreference } from '../hooks/useAppearancePreference';
 
 const AppSettings = () => {
   const [showConfirm, setShowConfirm] = useState(false);
@@ -17,6 +18,7 @@ const AppSettings = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const { currentUser } = useAuth();
+  const { reduceGlassEffects, toggleReduceGlassEffects } = useAppearancePreference();
 
   // Track data changes to reset sync status
   useEffect(() => {
@@ -196,6 +198,34 @@ const AppSettings = () => {
                   />
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Appearance */}
+          <div className="bg-surface rounded-md p-5 border border-line">
+            <h2 className="text-lg font-bold text-fg mb-4">Appearance</h2>
+            <div className="flex items-center justify-between py-2">
+              <div className="flex-1 pr-4">
+                <p className="font-semibold text-sm text-fg">Reduce glass effects</p>
+                <p className="text-xs text-fg-secondary">Use solid surfaces instead of transparency</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={reduceGlassEffects}
+                aria-label="Reduce glass effects"
+                onClick={toggleReduceGlassEffects}
+                className={`relative w-12 h-6 rounded-full transition-all duration-300 ${
+                  reduceGlassEffects ? 'bg-fg' : 'bg-bg border-2 border-fg-muted'
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full transform transition-transform duration-300 ${
+                    reduceGlassEffects ? 'bg-brand translate-x-6' : 'bg-fg translate-x-0'
+                  }`}
+                />
+              </button>
             </div>
           </div>
 

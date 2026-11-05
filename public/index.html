@@ -11,7 +11,14 @@
     />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    
+    <script>
+      try {
+        var appearance = JSON.parse(localStorage.getItem('watchly:appearance'));
+        document.documentElement.classList.toggle('no-glass', appearance === true);
+      } catch (error) {
+        document.documentElement.classList.remove('no-glass');
+      }
+    </script>
     
     <title>Watchly - Movie & TV Tracker</title>
   </head>

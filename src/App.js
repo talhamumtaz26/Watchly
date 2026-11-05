@@ -12,6 +12,7 @@ import './App.css';
 import { Capacitor } from '@capacitor/core';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { APP_NAME } from './config/app';
+import { useAppearancePreference } from './hooks/useAppearancePreference';
 
 // Lazy load all page components for better performance
 const Home = lazy(() => import('./pages/Home'));
@@ -75,6 +76,7 @@ function BackButtonHandler() {
 
 function App() {
   const [appReady, setAppReady] = useState(false);
+  useAppearancePreference();
 
   useEffect(() => {
     // Force dark mode always
@@ -104,7 +106,7 @@ function App() {
         <Router>
           <ScrollToTop />
           <BackButtonHandler />
-          <div className="App safe-content min-h-screen bg-bg transition-colors duration-200 pb-16 md:pb-0">
+          <div className="App safe-content min-h-screen bg-bg transition-colors duration-200 pb-[92px] md:pb-0">
             <Navbar />
             <BottomNav />
             <Suspense fallback={<LoadingSpinner fullScreen={true} message="Loading..." />}>
